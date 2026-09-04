@@ -11,63 +11,32 @@
     <main class="game-shell" id="game" aria-live="polite">
       <header class="topbar">
         <div class="identity"><span class="eyebrow">CESTA NIKAM</span><strong>NE, ALE ZABÍJÍM</strong></div>
-        <div class="resources"><span title="zlato">◈ <b id="gold">0</b></span><span title="esence">✦ <b id="essence">0</b></span><span title="elixíry">🧪 <b id="potion-count">1</b></span></div>
+        <div class="resources" aria-label="Zdroje"><span title="Zlato">◈ <b id="gold">0</b></span><span title="Esence">✦ <b id="essence">0</b></span><span title="Elixíry">🧪 <b id="potion-count">1</b></span></div>
       </header>
+      <section class="runbar" aria-label="Stav výpravy"><div class="hero-avatar"><img src="assets/sir-smik.png" alt="Sir Šmik, zelený fantasy assassin v kapuci" /></div><div class="hero-stats"><strong>Sir Šmik</strong><div class="health"><i id="hp-bar"></i></div><small><span id="hp">100</span>/<span id="max-hp">100</span> výdrže</small></div><div class="floor"><b id="floor">1</b><small>patro</small></div></section>
 
-      <section class="hero-panel">
-        <div class="hero-avatar"><img src="assets/sir-smik.png" alt="Sir Šmik, zelený fantasy assassin v kapuci" /></div>
-        <div class="hero-stats">
-          <div class="hero-name">Sir Šmik, profesionální omyl</div>
-          <div class="health"><i id="hp-bar"></i></div>
-          <small><span id="hp">100</span>/<span id="max-hp">100</span> výdrže · síla <span id="power">9</span></small>
-        </div>
-        <div class="floor"><b id="floor">1</b><small>patro</small></div>
+      <section class="tab-panel active" id="panel-road" data-panel="road">
+        <section class="battle" id="swipe-zone" aria-label="Herní plocha; tahem vlevo nebo vpravo zvolíš rozhodnutí"><div class="ambient">✦</div><div class="ambient second">✦</div><img class="hero-figure" src="assets/sir-smik.png" alt="" aria-hidden="true" /><div class="enemy-wrap" id="enemy-wrap"><div class="enemy-icon" id="enemy-icon">❔</div><div class="enemy-name" id="enemy-name">Další krok</div><div class="health enemy-health"><i id="enemy-hp-bar"></i></div><small id="enemy-hp">čeká na volbu</small></div><div class="combat-float" id="combat-float"></div><div class="battle-turn" id="battle-turn">Cesta čeká na rozhodnutí.</div><ol class="combat-log" id="combat-log" aria-label="Průběh boje"></ol></section>
+        <section class="decision" id="decision-card"><div class="decision-title" id="decision-title">KAMENY U CESTY</div><p id="decision-text">Někdo tu nechal rozhodnutí. Vypadá podezřele osobně.</p><div class="choice-row"><button class="choice no" data-choice="left"><span id="left-label">← Podívat se blíž</span><small id="left-copy">Někdy má smysl zastavit.</small></button><button class="choice yes" data-choice="right"><span id="right-label">Jít dál →</span><small id="right-copy">A někdy prostě pokračovat.</small></button></div><div class="swipe-hint" id="swipe-hint">Tahem prstu či myši vyber směr. Následky se nehlásí předem.</div></section>
       </section>
 
-      <section class="attributes" aria-label="Atributy hrdiny">
-        <span>⚔ <b id="damage">0–0</b><small>DMG</small></span><span>✹ <b id="crit">0 %</b><small>CRIT</small></span><span>🛡 <b id="armor">0</b><small>ARMOR</small></span>
-        <span>〰 <b id="evasion">0 %</b><small>EVADE</small></span><span>🩸 <b id="leech">0 %</b><small>LEECH</small></span><span>♥ <b id="vitality">0</b><small>VIT</small></span>
-        <span>🌵 <b id="thorns">0 %</b><small>THORNS</small></span><span>◒ <b id="absorb">0</b><small>ABSORB</small></span><span>⚡ <b id="haste">0 %</b><small>HASTE</small></span><span>☘ <b id="luck">0 %</b><small>LUCK</small></span>
+      <section class="tab-panel" id="panel-character" data-panel="character" hidden>
+        <div class="section-heading"><div><span class="eyebrow">POSTAVA</span><h2>Sir Šmik, profesionální omyl</h2></div><span class="power-badge">Síla <b id="power">0</b></span></div>
+        <section class="character-card"><img src="assets/sir-smik.png" alt="Sir Šmik" /><div><strong>Pověst na cestě</strong><p id="reputation-copy">Lidé si tě zatím pletou s pošťákem.</p><small id="memory-copy">Kronika má 0 poznámek.</small></div></section>
+        <div class="section-heading compact"><div><span class="eyebrow">NASAZENO</span><h2>Výbava</h2></div><small>Klepni pro detail</small></div><div class="equipment-grid" id="equipment-grid"></div>
+        <div class="section-heading compact"><div><span class="eyebrow">PARAMETRY</span><h2>Co opravdu dělají</h2></div><small>Klepni na parametr</small></div><div class="attributes" id="attributes" aria-label="Atributy hrdiny"></div>
+        <section class="belt-card"><div><span class="eyebrow">OPASEK</span><strong>Elixíry z úředních slz</strong><small id="belt-copy">Obnoví 35 % výdrže.</small></div><button id="heal-button" class="belt-potion" aria-label="Vypít elixír">🧪 <b id="belt-count">1</b></button></section>
       </section>
 
-      <section class="battle" id="swipe-zone" aria-label="Herní plocha; tahem vlevo nebo vpravo zvolíš cestu">
-        <div class="ambient">✦</div><div class="ambient second">✦</div>
-        <img class="hero-figure" src="assets/sir-smik.png" alt="" aria-hidden="true" />
-        <div class="enemy-wrap" id="enemy-wrap">
-          <div class="enemy-icon" id="enemy-icon">🟢</div>
-          <div class="enemy-name" id="enemy-name">Slizký účetní</div>
-          <div class="health enemy-health"><i id="enemy-hp-bar"></i></div>
-          <small id="enemy-hp">42 / 42</small>
-        </div>
-        <div class="combat-float" id="combat-float"></div>
-        <div class="battle-status" id="battle-status">Před tebou stojí problém, který má zuby.</div>
+      <section class="tab-panel" id="panel-inventory" data-panel="inventory" hidden>
+        <div class="section-heading"><div><span class="eyebrow">INVENTÁŘ</span><h2>Kapsy a rozhodnutí</h2></div><span class="inventory-count" id="inventory-count">0 / 12</span></div><p class="inventory-note">Klepni na předmět pro jeho afixy. Stejné kusy můžeš sloučit, nepotřebné prodat nebo nasadit.</p><div class="gear-grid" id="gear-grid"></div><section class="item-detail" id="item-detail" aria-live="polite">Vyber předmět. Každý kus má vlastní vzácnost, úroveň a afixy.</section><div class="item-actions"><button id="equip-button" disabled>Nasadit</button><button id="sell-button" disabled>Prodat</button></div>
+        <section class="workshop"><div class="section-heading"><div><span class="eyebrow">KAPESNÍ KOVÁRNA</span><h2>Sluč stejnou kořist</h2></div><span class="merge-note" id="merge-note">Vyber dva stejné kusy</span></div><div class="workshop-footer"><span>2 stejné kusy → silnější kus</span><div><button class="tiny" id="shop-button">Krámek <span id="shop-cost">28</span> ◈</button><button class="tiny" id="forge-button">Vykovat 12 ✦</button></div></div></section>
       </section>
 
-      <section class="decision" id="decision-card">
-        <div class="decision-title" id="decision-title">ZLÝ NÁPAD NA CESTĚ</div>
-        <p id="decision-text">Místní sliz chce být tvým koučem. Nejdřív tě ale zkusí sežrat.</p>
-        <div class="choice-row">
-          <button class="choice no" data-choice="no"><span>← NE</span><small id="no-copy">Obejít ho · bezpečněji</small></button>
-          <button class="choice yes" data-choice="yes"><span>ANO →</span><small id="yes-copy">Urazit jeho rodinu · víc zlata</small></button>
-        </div>
-        <div class="swipe-hint" id="swipe-hint">Tahem vlevo nebo vpravo si vybereš. Boj se postará sám.</div>
-      </section>
-
-      <section class="workshop">
-        <div class="section-heading"><div><span class="eyebrow">KAPESNÍ KOVÁRNA</span><h2>Sluč stejnou kořist</h2></div><span class="merge-note" id="merge-note">Najdi pár</span></div>
-        <div class="gear-grid" id="gear-grid"></div>
-        <div class="loadout" id="loadout"></div>
-        <div class="item-detail" id="item-detail"></div>
-        <div class="workshop-footer"><span>2 stejné kusy → 1 lepší kus</span><div><button class="tiny" id="shop-button">Krámek <span id="shop-cost">28</span> ◈</button><button class="tiny" id="forge-button">Vykovat 12 ✦</button></div></div>
-      </section>
-
-      <section class="side-actions">
-        <button id="heal-button">🧪 Vypít elixír z úředních slz <small>obnoví 35 % výdrže</small></button>
-        <button id="ad-button">◉ Vrána s reklamou: další kořist ×2 <small>prototyp</small></button>
-      </section>
-      <button class="reset-button" id="reset-button">↺ Resetovat lokální playtest</button>
-
-      <div class="toast" id="toast" role="status"></div>
+      <nav class="bottom-tabs" aria-label="Herní části"><button class="tab-button active" data-tab="road"><span>⌁</span>Cesta</button><button class="tab-button" data-tab="character"><span>♙</span>Postava</button><button class="tab-button" data-tab="inventory"><span>▦</span>Inventář</button></nav>
+      <button class="reset-button" id="reset-button">↺ Resetovat lokální playtest</button><div class="toast" id="toast" role="status"></div>
+      <div class="loot-overlay" id="loot-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="loot-title"><section class="loot-card"><span class="eyebrow">NÁLEZ Z VÝPRAVY</span><div class="loot-icon" id="loot-icon">🗡️</div><h2 id="loot-title">Předmět</h2><p id="loot-type">Vzácnost · typ</p><div id="loot-affixes"></div><small id="loot-note">Nejdřív si ho prohlédni. Pak se rozhodni.</small><div class="loot-actions"><button id="claim-loot">Vzít do inventáře</button><button id="sell-loot">Prodat</button></div></section></div>
+      <div class="tooltip" id="tooltip" role="status" hidden></div>
     </main>
     <script src="game.js"></script>
   </body>
