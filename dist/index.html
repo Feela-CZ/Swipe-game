@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="cs">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#071018" />
+    <title>NE, ALE ZABÍJÍM</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="game-shell" id="game" aria-live="polite">
+      <header class="topbar">
+        <div class="identity"><span class="eyebrow">CESTA NIKAM</span><strong>NE, ALE ZABÍJÍM</strong></div>
+        <div class="resources"><span title="zlato">◈ <b id="gold">0</b></span><span title="esence">✦ <b id="essence">0</b></span><span title="elixíry">🧪 <b id="potion-count">1</b></span></div>
+      </header>
+
+      <section class="hero-panel">
+        <div class="hero-avatar"><img src="assets/sir-smik.png" alt="Sir Šmik, zelený fantasy assassin v kapuci" /></div>
+        <div class="hero-stats">
+          <div class="hero-name">Sir Šmik, profesionální omyl</div>
+          <div class="health"><i id="hp-bar"></i></div>
+          <small><span id="hp">100</span>/<span id="max-hp">100</span> výdrže · síla <span id="power">9</span></small>
+        </div>
+        <div class="floor"><b id="floor">1</b><small>patro</small></div>
+      </section>
+
+      <section class="attributes" aria-label="Atributy hrdiny">
+        <span>⚔ <b id="damage">0–0</b><small>DMG</small></span><span>✹ <b id="crit">0 %</b><small>CRIT</small></span><span>🛡 <b id="armor">0</b><small>ARMOR</small></span>
+        <span>〰 <b id="evasion">0 %</b><small>EVADE</small></span><span>🩸 <b id="leech">0 %</b><small>LEECH</small></span><span>♥ <b id="vitality">0</b><small>VIT</small></span>
+        <span>🌵 <b id="thorns">0 %</b><small>THORNS</small></span><span>◒ <b id="absorb">0</b><small>ABSORB</small></span><span>⚡ <b id="haste">0 %</b><small>HASTE</small></span><span>☘ <b id="luck">0 %</b><small>LUCK</small></span>
+      </section>
+
+      <section class="battle" id="swipe-zone" aria-label="Herní plocha; tahem vlevo nebo vpravo zvolíš cestu">
+        <div class="ambient">✦</div><div class="ambient second">✦</div>
+        <div class="enemy-wrap" id="enemy-wrap">
+          <div class="enemy-icon" id="enemy-icon">🟢</div>
+          <div class="enemy-name" id="enemy-name">Slizký účetní</div>
+          <div class="health enemy-health"><i id="enemy-hp-bar"></i></div>
+          <small id="enemy-hp">42 / 42</small>
+        </div>
+        <div class="combat-float" id="combat-float"></div>
+        <div class="battle-status" id="battle-status">Před tebou stojí problém, který má zuby.</div>
+      </section>
+
+      <section class="decision" id="decision-card">
+        <div class="decision-title" id="decision-title">ZLÝ NÁPAD NA CESTĚ</div>
+        <p id="decision-text">Místní sliz chce být tvým koučem. Nejdřív tě ale zkusí sežrat.</p>
+        <div class="choice-row">
+          <button class="choice no" data-choice="no"><span>← NE</span><small id="no-copy">Obejít ho · bezpečněji</small></button>
+          <button class="choice yes" data-choice="yes"><span>ANO →</span><small id="yes-copy">Urazit jeho rodinu · víc zlata</small></button>
+        </div>
+        <div class="swipe-hint" id="swipe-hint">Tahem vlevo nebo vpravo si vybereš. Boj se postará sám.</div>
+      </section>
+
+      <section class="workshop">
+        <div class="section-heading"><div><span class="eyebrow">KAPESNÍ KOVÁRNA</span><h2>Sluč stejnou kořist</h2></div><span class="merge-note" id="merge-note">Najdi pár</span></div>
+        <div class="gear-grid" id="gear-grid"></div>
+        <div class="loadout" id="loadout"></div>
+        <div class="item-detail" id="item-detail"></div>
+        <div class="workshop-footer"><span>2 stejné kusy → 1 lepší kus</span><div><button class="tiny" id="shop-button">Krámek <span id="shop-cost">28</span> ◈</button><button class="tiny" id="forge-button">Vykovat 12 ✦</button></div></div>
+      </section>
+
+      <section class="side-actions">
+        <button id="heal-button">🧪 Vypít elixír z úředních slz <small>obnoví 35 % výdrže</small></button>
+        <button id="ad-button">◉ Vrána s reklamou: další kořist ×2 <small>prototyp</small></button>
+      </section>
+      <button class="reset-button" id="reset-button">↺ Resetovat lokální playtest</button>
+
+      <div class="toast" id="toast" role="status"></div>
+    </main>
+    <script src="game.js"></script>
+  </body>
+</html>
