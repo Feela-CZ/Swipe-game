@@ -78,7 +78,7 @@ function render() {
   $('decision-text').textContent = inCombat ? 'Sir Šmik pracuje sám. Ty můžeš mezitím plánovat, slučovat kořist nebo předstírat, že to bylo taktické.' : event.text;
   $('yes-copy').textContent = event.yes; $('no-copy').textContent = event.no;
   document.querySelectorAll('.choice').forEach(btn => btn.disabled = inCombat);
-  $('swipe-hint').textContent = inCombat ? 'Další rozhodnutí přijde po boji.' : 'Vlevo = NE, vpravo = ANO. Jedno gesto, pak se dívej, jak to dopadne.';
+  $('swipe-hint').textContent = inCombat ? 'Další rozhodnutí přijde po boji.' : 'Tahem prstu či myši: vlevo NE, vpravo ANO.';
   if (s.current) { const e=s.current; $('enemy-icon').textContent=e.icon; $('enemy-name').textContent=(e.elite?'★ ':'')+e.name; $('enemy-hp').textContent=`${e.hp} / ${e.maxHp}`; $('enemy-hp-bar').style.width=`${e.hp/e.maxHp*100}%`; $('battle-status').textContent=e.elite ? 'Elitní problém: dal jsi mu důvod.' : 'Běžný problém: dostal pracovní úkol.'; }
   else { $('enemy-icon').textContent='❔'; $('enemy-name').textContent='Další špatné rozhodnutí'; $('enemy-hp').textContent='vyber cestu'; $('enemy-hp-bar').style.width='0%'; $('battle-status').textContent='Cesta se sama nevybere. Naštěstí jen vlevo nebo vpravo.'; }
   renderGear(); save();
@@ -106,7 +106,11 @@ document.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>c
 $('gear-grid').addEventListener('click',(event)=> { const target=event.target.closest('.gear'); if(target) selectGear(Number(target.dataset.slot)); });
 $('forge-button').addEventListener('click',forge); $('shop-button').addEventListener('click',shop); $('heal-button').addEventListener('click',heal); $('ad-button').addEventListener('click',adReward);
 $('reset-button').addEventListener('click',resetPlaytest);
-$('swipe-zone').addEventListener('pointerdown',(event)=> { pointerStart={x:event.clientX,y:event.clientY}; });
-$('swipe-zone').addEventListener('pointerup',(event)=> { if(!pointerStart) return; const dx=event.clientX-pointerStart.x, dy=event.clientY-pointerStart.y; pointerStart=null; if(Math.abs(dx)>42 && Math.abs(dx)>Math.abs(dy)) choose(dx>0?'yes':'no'); });
+const swipeZone=$('swipe-zone');
+swipeZone.addEventListener('pointerdown',(event)=> { pointerStart={x:event.clientX,y:event.clientY,id:event.pointerId}; swipeZone.setPointerCapture?.(event.pointerId); });
+function resolveSwipe(event) { if(!pointerStart || pointerStart.id!==event.pointerId) return; const dx=event.clientX-pointerStart.x, dy=event.clientY-pointerStart.y; pointerStart=null; if(swipeZone.hasPointerCapture?.(event.pointerId)) swipeZone.releasePointerCapture?.(event.pointerId); if(Math.abs(dx)>42 && Math.abs(dx)>Math.abs(dy)) choose(dx>0?'yes':'no'); }
+swipeZone.addEventListener('pointerup',resolveSwipe);
+swipeZone.addEventListener('pointercancel',()=> { pointerStart=null; });
+document.addEventListener('keydown',(event)=> { if(event.key==='ArrowLeft' || event.key.toLowerCase()==='a') choose('no'); if(event.key==='ArrowRight' || event.key.toLowerCase()==='d') choose('yes'); });
 render();
 if (s.current) startCombat();
