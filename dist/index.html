@@ -35,7 +35,7 @@
 
       <nav class="bottom-tabs" aria-label="Herní části"><button class="tab-button active" data-tab="road"><span>⌁</span>Cesta</button><button class="tab-button" data-tab="character"><span>♙</span>Postava</button><button class="tab-button" data-tab="inventory"><span>▦</span>Inventář</button></nav>
       <button class="reset-button" id="reset-button">↺ Resetovat lokální playtest</button><div class="toast" id="toast" role="status"></div>
-      <div class="loot-overlay" id="loot-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="loot-title"><section class="loot-card"><span class="eyebrow">NÁLEZ Z VÝPRAVY</span><div class="loot-icon" id="loot-icon">🗡️</div><h2 id="loot-title">Předmět</h2><p id="loot-type">Vzácnost · typ</p><div id="loot-affixes"></div><small id="loot-note">Nejdřív si ho prohlédni. Pak se rozhodni.</small><div class="loot-actions"><button id="claim-loot">Vzít do inventáře</button><button id="sell-loot">Prodat</button></div></section></div>
+      <div class="loot-overlay" id="loot-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="loot-title"><section class="loot-card"><span class="eyebrow" id="loot-eyebrow">NÁLEZ Z VÝPRAVY</span><div class="loot-icon" id="loot-icon">🗡️</div><h2 id="loot-title">Předmět</h2><p id="loot-type">Vzácnost · typ</p><div id="loot-affixes"></div><small id="loot-note">Nejdřív si ho prohlédni. Pak se rozhodni.</small><div class="loot-actions"><button id="open-chest" hidden>Otevřít truhlu</button><button id="claim-loot">Vzít do inventáře</button><button id="sell-loot">Prodat</button></div></section></div>
       <div class="tooltip" id="tooltip" role="status" hidden></div>
     </main>
     <script src="game.js"></script>
