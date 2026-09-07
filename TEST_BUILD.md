@@ -1,27 +1,32 @@
-# Test build — NE, ALE ZABÍJÍM
+# Testovací vydání — 7. září 2026
 
-**Build status:** Ready for owner playtest  
-**Date:** 2026-09-03
+## Co ověřují aktuální testy
 
-## Included
+tests/game.test.mjs používá skutečný engine.js, nikoli oddělený aproximovaný model.
+Zahrnuje poškození a haste, růst postavy, migraci starých pozic, příběhové následky,
+zachování rozehrané výpravy a taktické pauzy, sloučení bez zhoršení, pravděpodobnosti
+štěstí, truhly, ceny, plný inventář, cílené recepty, aktivace jedinečných efektů,
+rozdílné bosse, porážku a postup všemi pěti lokalitami.
 
-- Touch and button-equivalent ANO/NE decisions.
-- Auto-combat with ten active attributes.
-- 48 equipment types, six rarities, affixes, merges, shop, forge, and consumable elixirs.
-- Local-only save and confirmed local reset.
-- Original local art: moonlit-road background and Sir Šmik portrait.
+Simulace prvního průchodu věží: 300 deterministických seedů; postava volí pomoc
+a přípravu, nasazuje silnější kořist a investuje do síly. Simulace neklade časové
+prodlevy a nepředstavuje pozorované lidské chování.
 
-## Verified locally
+tests/ui.test.mjs provádí skutečné UI handlery nad jednoduchým modelem DOM:
+čtyři karty, dialogy, obchod, výprava, návrat na mapu, postup bojem přes naplánované
+akce, taktika, bossův loot a inventář. Neověřuje vykreslené rozložení v prohlížeči.
 
-- JavaScript syntax check.
-- Loot/attribute smoke test: 48 items, 6 rarities, Epic +3 to Legendary +1 merge, and ten calculated combat attributes.
-- UI audit: 23 required interactive/stat elements and both local image assets.
-- Deterministic 1,000-run combat reference simulation.
+## Praktický průchod pro hráče
 
-## Not yet certified
+1. Vyrazit do věže; pomoci písaři a umlčet zvon.
+2. U bosse nejprve ustoupit. Pozorovat souvislost přípravy a výsledku.
+3. Zkontrolovat garantovaný předmět, materiály a otevření lesa.
+4. Při druhé výpravě vzít klíč a zvolit pokladnici. Porovnat bossovu posilu.
+5. Ze čtyř pečetí vyrobit Amulet nenasytnosti.
+6. U dvou odpovídajících kusů porovnat náhled sloučení a potvrzený výsledek.
+7. Uprostřed výpravy otevřít mapu nebo obnovit stránku. Pokračovat na stejném místě.
 
-- Manual play feel, touch ergonomics, and visual presentation on a physical phone.
-- Real advertising, analytics, account services, payments, or publishing.
-- Retention and long-term economy.
+## Co se tím netvrdí
 
-Open `index.html` in a modern browser when ready to playtest. The prototype has no external dependencies.
+Bezchybnost na všech zařízeních, dlouhodobá vyváženost, retence, monetizace
+ani fyzický telefonní playtest. Tyto věci z automatických testů nevyplývají.
