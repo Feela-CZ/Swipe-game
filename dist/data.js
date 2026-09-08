@@ -16,27 +16,32 @@ const slotIds={
  feet:['boots','greaves','socks'],hands:['gauntlets'],offhand:['shield','goblet','mirror'],ring:['ring']
 };
 itemKinds.forEach(d=>{d.slot=Object.keys(slotIds).find(k=>slotIds[k].includes(d.id))||'relic'});
+// Clear type names; humour belongs in context, not in misleading stat promises.
+const itemLabels=['Cechovní dýka','Dřevorubecká sekera','Čarodějnické koště','Jasanová hůlka','Strážní meč','Železný palcát','Lovecký luk','Hlídací kopí','Runová hůl','Táborová pánev','Železná kosa','Lehká kuše','Řeznický sekáček','Soudcovské kladívko','Bardova loutna','Cestovní deštník','Strážní přilba','Cestovní plášť','Kožené boty','Ocelový nárameník','Ocelový kyrys','Plátové rukavice','Kožený opasek','Železné holenníky','Havraní maska','Stříbrná koruna','Kroužková zbroj','Klobouk poutníka','Sametová pelerína','Prošívaná vesta','Kulatý štít','Vlněné ponožky','Zkamenělé vejce','Stará mýtná mince','Stříbrný pohár','Lovecká píšťala','Věštecká koule','Měděný prsten','Runový amulet','Kniha zaříkadel','Vyřezávaná lebka','Cestovní čajník','Přesýpací hodiny','Rituální svíce','Starý cechovní klíč','Vyzrálý cestovní sýr','Stříbrné zrcadlo','Poutníkova relikvie'];
+itemKinds.forEach((d,i)=>{d.label=itemLabels[i];});
+const itemArt={dagger:0,axe:1,sword:2,staff:3,bow:4,crossbow:5,mace:6,spear:7,helm:8,breastplate:9,boots:10,gauntlets:11,shield:12,ring:13,amulet:14,book:15};
+['broom','wand','frying-pan','scythe','cleaver','gavel','lute','umbrella','cloak','pauldron','belt','greaves','mask','crown','mail','hat','cape','vest','socks','egg','coin','goblet','whistle','orb','skull','teapot','hourglass','candle','key','cheese','mirror','sock'].forEach((id,i)=>{itemArt[id]=16+i;});
+const statCaps={crit:65,evasion:40,leech:25,thorns:100,absorb:40,haste:65,luck:60,block:45};
 const signatures={
  dagger:{name:'Dýka druhého dechu',effect:'Po úhybu příští zásah způsobí dvojnásobné poškození.',trait:'riposte',genes:[['evasion',5],['crit',7],['haste',5]],poi:1},
- shield:{name:'Štít uraženého ježka',effect:'Blok připraví odvetu. Příští zásah vrátí navíc 60 % tvého ARMOR.',trait:'hedgehog',genes:[['armor',8],['thorns',25],['vitality',12]],poi:2},
+ shield:{name:'Štít uraženého ježka',effect:'Blok nebo obranný manévr připraví odvetu. Příští běžný zásah přidá poškození ve výši 60 % tvé zbroje.',trait:'hedgehog',genes:[['armor',8],['thorns',25],['vitality',12]],poi:2},
  amulet:{name:'Amulet nenasytnosti',effect:'Přebytečné léčení z kradení života se mění na ochranný štít.',trait:'overflow',genes:[['leech',8],['vitality',14],['absorb',2]],poi:0},
  axe:{name:'Sekera posledního slova',effect:'Proti nepříteli pod 35 % života způsobíš o 55 % více poškození.',trait:'execute',genes:[['damage',4],['crit',6],['vitality',10]],poi:3}
 };
 const traits=Object.fromEntries(Object.values(signatures).map(x=>[x.trait,x]));
 const areas=[
  {id:'toll-tower',name:'Mýtná věž',short:'Věž',scene:0,x:22,y:77,level:1,material:'Mýtné pečeti',boss:'Výběrčí poslední mince',bossArt:3,focus:['relic','ring','offhand'],hint:'Zvon svolává stráže. Někdo uvnitř ví, jak ho umlčet.',quest:'Zruš mýto pro živé i zesnulé.',recipe:'amulet'},
- {id:'whisperwood',name:'Šeptající les',short:'Les',scene:1,x:27,y:55,level:3,material:'Lesní runy',boss:'Jelen tisíce výmluv',bossArt:5,focus:['weapon','feet','ring'],hint:'Kořeny prozrazují, kam jelen vyrazí. Sleduj jeho přípravu.',quest:'Najdi zdroj hlasů, které vodí pocestné do kruhu.',recipe:'dagger'},
- {id:'black-mine',name:'Černý důl',short:'Důl',scene:2,x:70,y:49,level:5,material:'Černá ruda',boss:'Předák poslední směny',bossArt:0,focus:['body','offhand','head','hands'],hint:'Závalu se dá vyhnout. Jeho krunýř ale vyžaduje silný úder.',quest:'Ukonči směnu, která trvá už třicet let.',recipe:'shield'},
+ {id:'whisperwood',name:'Šeptající les',short:'Les',scene:1,x:27,y:55,level:3,material:'Lesní runy',boss:'Jelen bludných cest',bossArt:5,focus:['weapon','feet','ring'],hint:'Jelena léčí kořeny propojené s hájem. Cestou můžeš toto spojení přetnout.',quest:'Poraž zakletého strážce háje a otevři pocestným cestu z lesa.',recipe:'dagger'},
+ {id:'black-mine',name:'Černý důl',short:'Důl',scene:2,x:70,y:49,level:5,material:'Černá ruda',boss:'Předák poslední směny',bossArt:0,focus:['body','offhand','head','hands'],hint:'Předákovu zbroj pokrývá černá ruda. Úspěšné přerušení jeho těžkého útoku tento krunýř rozbije.',quest:'Ukonči směnu, která trvá už třicet let.',recipe:'shield'},
  {id:'overtime-castle',name:'Hrad Přesčas',short:'Hrad',scene:3,x:74,y:27,level:8,material:'Královské erby',boss:'Král Přesčas I.',bossArt:3,focus:['weapon','relic','body'],hint:'Král vybírá daň z každého slabého úderu. Šetři sílu na finále.',quest:'Vrať poddaným jejich vlastní večery.',recipe:'axe'},
  {id:'expectation-peaks',name:'Hory očekávání',short:'Hory',scene:4,x:29,y:16,level:11,material:'Hvězdné úlomky',boss:'Strážce nesplnitelných slibů',bossArt:5,focus:['relic','ring','weapon'],hint:'Lavina nezajímá, kolik máš zkušeností. Rozhoduje příprava.',quest:'Přines důkaz, že i nemožný úkol má konec.',recipe:'amulet'}
 ];
 const foeKinds={
- guard:{name:'Strážný na dvojí směně',art:0,style:'armored',hint:'Zbroj tlumí zásahy. Každým třetím úderem se rozkryje.'},
+ guard:{name:'Strážný na dvojí směně',art:0,style:'armored',hint:'Zbroj snižuje tvé zásahy o 35 %. Při každém třetím tvém běžném útoku se strážný odkryje a zbroj ho nechrání.'},
  thief:{name:'Krysa s cizím měšcem',art:1,style:'thief',hint:'Chystá útěk. Po čtyřech útocích může zmizet s částí odměny.'},
  hunter:{name:'Lovec nedoplatků',art:2,style:'hunter',hint:'Střídá výstřel a nabíjení silné rány.'},
- spirit:{name:'Bludný strážce',art:5,style:'spirit',hint:'Kořeny ho léčí. Útoky zesilují, pokud souboj protahuješ.'}
+ spirit:{name:'Bludný strážce',art:5,style:'spirit',hint:'Každé tři tvoje útoky jeho poškození vzroste o 1. Čím delší boj, tím nebezpečnější je.'}
 };
 const statNames={damage:'Poškození',crit:'Kritická šance',armor:'Zbroj',evasion:'Úhyb',vitality:'Životy',leech:'Kradení života',gold:'Zlato',thorns:'Trny',absorb:'Pohlcení',haste:'Rychlost',luck:'Štěstí'};
-globalThis.RPGData={itemKinds,itemById,rarities,rarityById,rarityIndex,affixDefinitions,affixById,slots,signatures,traits,areas,foeKinds,statNames};
+globalThis.RPGData={itemKinds,itemById,itemArt,statCaps,rarities,rarityById,rarityIndex,affixDefinitions,affixById,slots,signatures,traits,areas,foeKinds,statNames};
 })();
-

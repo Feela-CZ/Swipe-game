@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const ctx=vm.createContext({console});
-for(const file of ['data.js','engine.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),ctx);
+for(const file of ['data.js','story.js','engine.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),ctx);
 const {Game}=ctx.RPG,D=ctx.RPGData;
 const seedRng=start=>{let n=start>>>0;return()=>{n^=n<<13;n^=n>>>17;n^=n<<5;return(n>>>0)/4294967296}};
 const fresh=(seed=123)=>new Game(null,seedRng(seed));
@@ -156,6 +156,51 @@ test('five regions plus repeatable challenge progression are completable with ap
   g.state.potions=4;g.rest();assert.ok(g.start(area));const result=complete(g,{equip:true,spend:true});assert.ok(result.win,'region '+area);assert.equal(g.state.records[area].marks,2);
  }
  assert.ok(g.start(4,1));assert.equal(g.state.run.challenge,1);
+});
+test('luck equipment is inactive in inventory and contributes to total, drops and gold when equipped',()=>{
+ const g=fresh();g.state.growth.luck=2;
+ const ring=g.item('ring','uncommon',1,[['luck',3]]);g.state.inventory.push(ring);
+ assert.equal(g.stats().luck,2);const prior=g.dropChance();g.equip(ring.id);
+ const b=g.statBreakdown();assert.equal(b.base.luck,2);assert.equal(b.bonus.luck,3);assert.equal(b.total.luck,5);assert.equal(b.total.gold,10);assert.ok(g.dropChance()>prior);
+ const saved=new Game(plain(g.state));assert.equal(saved.stats().luck,5);assert.equal(saved.stats().gold,10);
+ assert.equal(g.gold(100),110);g.unequip('ring');assert.equal(g.stats().luck,2);
+});
+test('all displayed breakdowns reconcile, including stacking, rounding and caps',()=>{
+ const g=fresh();g.state.growth.luck=58;
+ g.state.equipped.ring=g.item('ring','rare',4,[['luck',7],['crit',99],['absorb',50]]);
+ g.state.equipped.relic=g.item('amulet','rare',4,[['luck',9],['gold',8],['haste',99]]);
+ const b=g.statBreakdown();assert.equal(b.raw.luck,74);assert.equal(b.total.luck,60);assert.equal(b.bonus.luck,2);assert.equal(b.total.gold,128);
+ for(const key of Object.keys(b.bonus))assert.ok(Math.abs(b.base[key]+b.bonus[key]-b.total[key])<.00001,key);
+ assert.equal(b.total.crit,65);assert.equal(b.total.absorb,40);assert.equal(b.total.haste,65);
+});
+test('forest choice really disables roots and regional scenes do not reuse tower interiors',()=>{
+ const g=fresh();g.state.unlocked=5;g.start(1);g.state.run.rooms=['fork','boss'];
+ assert.ok(g.room().text.includes('kořeny'));g.choose('left');assert.ok(g.state.run.flags.silent);g.state.notice=null;
+ g.fight('boss');const b=g.state.run.battle;b.hp-=30;b.round=2;g.random=()=>.99;const hp=b.hp;g.enemy();assert.equal(b.hp,hp);
+ assert.ok(!g.describe('camp').text.includes('pera'));assert.ok(g.describe('camp').text.includes('jelena'));
+});
+test('carrying injured courier earns persistent friendship and reports actual life cost',()=>{
+ const g=fresh();g.start();g.state.run.rooms=['wounded','boss'];g.state.hp=4;g.state.potions=0;g.choose('left');
+ assert.equal(g.state.hp,1);assert.ok(g.state.flags.courierFriend);assert.ok(g.state.notice.text.includes('3 životů'));
+});
+test('chapter introduction is idempotent, interactive and survives save/load',()=>{
+ const g=fresh();g.introduceChapter();g.introduceChapter();assert.equal(g.state.storyEvents.length,1);
+ assert.equal(g.closeStory(),false);assert.equal(g.storyReply(2),false);assert.ok(g.storyReply(1));assert.equal(g.storyReply(0),false);
+ const saved=new Game(plain(g.state));assert.equal(saved.state.storyEvents[0].response,1);assert.ok(saved.closeStory());saved.introduceChapter();assert.equal(saved.state.storyEvents.length,0);assert.ok(saved.state.flags.chapterIntroSeen);
+});
+test('each first victory advances its chapter beat, replays do not resurrect the villain',()=>{
+ for(let area=0;area<5;area++){
+  const g=fresh();g.state.unlocked=5;g.start(area);g.fight('boss');g.win();
+  const event=g.state.storyEvents[0];assert.equal(event.id,'clear-'+area);assert.equal(event.speaker,D.chapter.villain);assert.equal(event.replies.length,2);
+  if(area===3)assert.ok(g.state.notice.text.includes('uprchl'));if(area===4)assert.ok(g.state.notice.text.includes('vzdal'));
+  resolvePending(g);g.state.storyEvents=[];g.start(area);assert.ok(g.state.run.replay);g.fight('boss');g.win();assert.equal(g.state.storyEvents[0].id,'echo-'+area);
+ }
+});
+test('retreat and defeat provide feedback without awarding story progress',()=>{
+ for(const result of ['retreat','loss']){const g=fresh();g.start();if(result==='retreat')g.retreat();else{g.fight('boss');g.lose();}assert.equal(g.state.records[0].clears,0);assert.equal(g.state.unlocked,1);assert.equal(g.state.storyEvents[0].id,result+'-0');}
+});
+test('all 48 item kinds have unique atlas cells',()=>{
+ assert.equal(new Set(Object.values(D.itemArt)).size,48);for(const d of D.itemKinds)assert.ok(Number.isInteger(D.itemArt[d.id]));
 });
 let victories=0,totalActions=0,totalTactics=0;
 for(let n=1;n<=300;n++){

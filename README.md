@@ -2,13 +2,21 @@
 
 Přepracovaná mobilní fantasy hra. Jedním tahem rozhoduješ o cestě, pomoci postavám i odpovědi na bossův útok. Hraje se v prohlížeči, postup zůstává na zařízení.
 
+## Ladění 8. září — příběh a mobilní ovládání
+
+První mapa je kapitola „Král, který zakázal soumrak“. Král Přesčas drží večer pomocí Koruny posledního světla: mýtná věž zadržuje pocestné, zakletý jelen uzavírá les, důl zásobuje korunu, hrad vede ke královu útěku a horská svatyně k rozbití koruny. Úvod i dohry nabízejí odpověď králi. Repliky jsou charakterizační, bez skrytého bonusu ke statům. Postup dialogu se ukládá; první vítězství má vlastní dohru, opakování je ozvěnou kletby. Otmar v táboře reaguje na návrat a porážku. Není totožný s vězněným písařem.
+
+Pevný rám používá dynamickou výšku viewportu a bezpečné okraje telefonu. Měny jsou trvale nahoře, hlavní volby a navigace dole. Inventář, přehled postavy a delší text mají vlastní posuvnou oblast. Na malé obrazovce a naležato se zmenšuje či skrývá dekorativní scéna, nikoli ovládání. Geometrii na fyzickém zařízení automatické testy nepotvrzují.
+
+Výsledné staty zobrazují základ + součet nasazené výbavy = celkem; kliknutí vysvětluje účinek, limity a zdroje. Štěstí se zobrazuje v bodech a započítává se i do horního atributu. Detail předmětu ukazuje základní vlastnosti, afixy a změnu po nasazení. Všech 48 typů má ilustraci ve třech 4×4 atlasech. Překryv zbraně na portrétu je odstraněný.
+
 ## Spuštění a ověření
 
 - Náhled: node preview-server.mjs, pak http://localhost:4173.
 - Herní regrese a 300 průchodů skutečným jádrem: node tests/game.test.mjs.
 - Integrace rozhraní bez skutečného prohlížeče: node tests/ui.test.mjs.
 - Vydání statických souborů: node build-site.mjs.
-- Nejprve se načítají data.js a engine.js, poté game.js. Bez bundleru a externích herních závislostí.
+- Načítání: data.js → story.js → engine.js → game.js. Bez bundleru a externích herních závislostí.
 
 ## Herní cyklus
 

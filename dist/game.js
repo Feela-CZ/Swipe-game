@@ -10,8 +10,38 @@ try{
 const game=new RPG.Game(stored);let tab='map',timer=null,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',audio=null,pointer=null,previousFocus=null;
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,value='',classes='',disabled=false)=>'<button class="'+classes+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
-const name=it=>it.name||D.itemById[it.kind].label;
-const pct=new Set(['crit','evasion','leech','gold','thorns','haste','luck']);
+const name=it=>it.name||(it.kind==='ring'&&it.affixes.some(x=>x.id==='luck')?'Prsten štěstí':D.itemById[it.kind].label);
+const pct=new Set(['crit','evasion','leech','gold','thorns','haste','block','xpBonus']);
+const fmt=n=>String(Math.round(n*100)/100).replace('.',','),unit=k=>pct.has(k)?' %':'';
+const statRows=[['damageMin','Min. poškození'],['damageMax','Max. poškození'],['maxHp','Životy'],['armor','Zbroj'],['crit','Kritická šance'],['evasion','Úhyb'],['block','Blok'],['thorns','Trny'],['absorb','Pohlcení'],['haste','Rychlost'],['luck','Štěstí'],['gold','Bonus zlata'],['xpBonus','Bonus zkušeností'],['leech','Kradení života'],['shieldCap','Kapacita štítu']];
+function itemArt(kind){
+ const cell=D.itemArt[kind],d=D.itemById[kind];
+ return cell===undefined?'<span class="item-monogram" aria-hidden="true">'+esc(d.label.split(' ').map(x=>x[0]).slice(0,2).join(''))+'</span>':'<span class="item-art atlas-'+(1+Math.floor(cell/16))+'" aria-hidden="true" style="--item-x:'+(cell%4*100/3)+'%;--item-y:'+(Math.floor(cell%16/4)*100/3)+'%"></span>';
+}
+function statFormula(key,b=game.statBreakdown()){
+ return '<span class="stat-formula">'+fmt(b.base[key])+' <em>+ '+fmt(b.bonus[key])+'</em> = <b>'+fmt(b.total[key])+unit(key)+'</b></span>';
+}
+function statExplanation(key){
+ const a=game.stats(),reduction=100*Math.min(.65,a.armor/(a.armor+85));
+ const descriptions={
+ damageMin:'Běžný útok náhodně vybere poškození mezi '+a.damageMin+' a '+a.damageMax+'. Síla přidává za bod 1,2 k minimu a 1,8 k maximu. Zbraň, relikvie a afixy se přičítají; zbroj protivníka a zvláštní účinky výsledek dále mění.',
+ damageMax:'Horní hranice běžného útoku je '+a.damageMax+'. Přerušení bosse uspěje, pokud dosáhne alespoň 2,6násobku jeho základního poškození. Krit se do tohoto testu nepočítá.',
+ maxHp:'Maximum životů: '+a.maxHp+'. Odolnost přidá 7 za bod, další životy poskytují ochranné předměty a afixy. Nasazení výbavy zvýší maximum, ale samo neléčí. Lektvar obnoví až 40 % maxima; opasek při smrtelném zásahu automaticky spotřebuje lektvar a vrátí 35 % maxima.',
+ armor:'Zbroj nyní sníží poškození o '+fmt(reduction)+' %. Platí zbroj ÷ (zbroj + 85), nejvýše 65 %. Nejdřív se odečte pohlcení, pak působí zbroj a nakonec ochranný štít.',
+ crit:'Každý běžný útok má '+fmt(a.crit)+'% šanci na kritický zásah za 175 % poškození. Základ je 5 %, obratnost přidává 1,2 procentního bodu za bod. Taktický útok kriticky nezasahuje.',
+ evasion:'Proti běžnému útoku máš '+fmt(a.evasion)+'% šanci úplně uhnout. Základ je 3 %, obratnost přidává 0,8 procentního bodu za bod. Od 12 % také vždy uspěje obranný manévr proti těžkému útoku bosse.',
+ block:'Po neúspěšném úhybu máš '+fmt(a.block)+'% šanci zablokovat běžný útok a snížit jej o 55 %. Každý předmět v levé ruce dává 12 procentních bodů bloku. Potom se uplatní pohlcení a zbroj.',
+ thorns:'Vrátíš '+fmt(a.thorns)+' % skutečně ztracených životů jako poškození útočníkovi, zaokrouhlené na celé body. Úplný úhyb nebo plné pohlcení tedy trny nespustí.',
+ absorb:'Z každého příchozího zásahu se odečte '+fmt(a.absorb)+' poškození před výpočtem zbroje. Může zásah zcela pohltit. Nejde o procenta ani o spotřebovatelný štít.',
+ haste:'Čekání na tvůj běžný útok: '+game.attackDelay()+' ms při tempu 1×. Výpočet je 1050 ÷ (1 + rychlost / 100). Rychlost nemění počet tahů a sama nezabrání útěku krysy.',
+ luck:'Štěstí je hodnota v bodech, nikoli přímá šance na nález. Každý bod zvyšuje základní šanci na předmět o 1 % relativně a přidá 2 % zlata z odměn. Nyní: běžný nepřítel '+fmt(game.dropChance()*100)+' %, silná hlídka '+fmt(game.dropChance(true)*100)+' %, ošoupaná truhla '+fmt(Math.min(100,65*(1+a.luck/100)))+' %, železná truhla '+fmt(Math.min(100,85*(1+a.luck/100)))+' %. Runová truhla a boss dávají předmět vždy. Štěstí také posouvá losování vzácnosti směrem k lepším kategoriím; nezaručuje konkrétní kvalitu.',
+ gold:'Odměny za boj, setkání a mince z truhel se násobí '+fmt(1+a.gold/100)+'× a zaokrouhlují. Základní odměna 100 zlata ti přinese '+Math.round(100*(1+a.gold/100))+'. Započítávají se afixy zlata i 2 % za každý výsledný bod štěstí. Prodejní ceny to nemění.',
+ xpBonus:'Zkušenosti z bojů se násobí '+fmt(1+a.xpBonus/100)+'×. Inteligence přidává 5 % za bod. Například odměna 100 XP přinese '+Math.round(100*(1+a.xpBonus/100))+' XP. Každá úroveň přidá jeden bod výcviku.',
+ leech:'Běžný zásah tě vyléčí o '+fmt(a.leech)+' % způsobeného poškození, při aktivním kradení nejméně o 1 život. Taktické přerušení a trny neléčí. Bez Amuletu nenasytnosti se přebytek nad maximum ztratí.',
+ shieldCap:'Kapacita přebytečného léčení je '+a.shieldCap+'. Základ je 20 a inteligence přidává 3 za bod. Funguje pouze s nasazenou vlastností Amuletu nenasytnosti. Aktuální štít: '+(game.state.run?.shield||0)+'. Pohlcuje poškození po zbroji a končí s výpravou.'
+ };
+ return descriptions[key]||'';
+}
 const atlas=(art,cls='portrait')=>'<div class="'+cls+' art-'+art+'" role="img" aria-label="'+esc(['Strážný','Krysa','Lovec','Výběrčí','Písař','Lesní duch'][art])+'"></div>';
 function sound(type='tap'){
  if(!game.state.settings.sound)return;
@@ -26,21 +56,28 @@ function percent(n,max){return Math.max(0,Math.min(100,n/max*100));}
 function health(n,max,kind=''){return '<div class="health '+kind+'"><i style="width:'+percent(n,max)+'%"></i></div>';}
 function lootCard(it,compact=false){
  const d=D.itemById[it.kind],r=D.rarityById[it.rarity];
- return '<div class="item-card '+(compact?'compact':'')+'" style="--rarity:'+r.color+'"><div class="item-symbol">'+d.icon+'</div><div><small>'+r.label+' · úroveň '+it.ilvl+' · +'+it.rank+'</small><strong>'+esc(name(it))+'</strong><span>'+D.slots[d.slot]+'</span></div></div>';
+ return '<div class="item-card '+(compact?'compact':'')+'" style="--rarity:'+r.color+'">'+itemArt(it.kind)+'<div><small>'+r.label+' · úroveň '+it.ilvl+' · +'+it.rank+'</small><strong>'+esc(name(it))+'</strong><span>'+D.slots[d.slot]+'</span></div></div>';
 }
-function genes(it){return '<ul class="genes">'+it.affixes.map(x=>'<li><span>'+D.statNames[x.id]+'</span><b>+'+x.value+(pct.has(x.id)?' %':'')+'</b></li>').join('')+'</ul>'+(it.trait?'<div class="signature"><small>JEDINEČNÁ VLASTNOST</small><p>'+esc(D.traits[it.trait].effect)+'</p></div>':'');}
+function genes(it){
+ const p=game.basePower(it),slot=D.itemById[it.kind].slot,core=slot==='weapon'?'Poškození +'+fmt(p*1.6)+' až +'+fmt(p*2):['head','body','feet','hands','offhand'].includes(slot)?'Zbroj +'+fmt(p*1.6)+' · životy +'+fmt(p*3)+(slot==='offhand'?' · blok +12 %':''):'Poškození +'+fmt(p*.3)+' až +'+fmt(p*.5);
+ return '<p class="item-base"><small>ZÁKLAD PŘEDMĚTU</small>'+core+'</p>'+(it.kind==='bow'?'<p>První běžný zásah v každém boji má o 30 % vyšší poškození.</p>':'')+'<ul class="genes">'+it.affixes.map(x=>'<li>'+btn(D.statNames[x.id]+' ⓘ','stat-help',x.id==='vitality'?'maxHp':x.id==='damage'?'damageMin':x.id,'stat-link')+'<b>+'+x.value+unit(x.id)+'</b></li>').join('')+'</ul><p class="muted">Bonusy platí jen při nasazení. Předmět v inventáři staty nemění.</p>'+(it.trait?'<div class="signature"><small>JEDINEČNÁ VLASTNOST</small><p>'+esc(D.traits[it.trait].effect)+'</p></div>':'');
+}
 function compare(it){
  const slot=D.itemById[it.kind].slot,old=game.state.equipped[slot],before=game.stats(),after=game.stats({...game.state.equipped,[slot]:it});
- const rows=[['damageMax','Max. poškození'],['maxHp','Životy'],['armor','Zbroj'],['crit','Krit'],['evasion','Úhyb'],['leech','Kradení života'],['haste','Rychlost'],['luck','Štěstí']];
- return '<div class="comparison"><small>PROTI '+esc(old?name(old):'PRÁZDNÉMU SLOTU')+'</small>'+rows.filter(([k])=>after[k]!==before[k]).map(([k,label])=>'<span>'+label+' <b class="'+(after[k]>before[k]?'up':'down')+'">'+(after[k]>before[k]?'+':'')+Math.round((after[k]-before[k])*10)/10+'</b></span>').join('')+'</div>';
+ const rows=statRows.filter(([k])=>after[k]!==before[k]);
+ return '<div class="comparison"><small>ZMĚNA PO NASAZENÍ · PROTI '+esc(old?name(old):'PRÁZDNÉMU SLOTU')+'</small>'+rows.map(([k,label])=>'<span>'+label+' <b class="'+(after[k]>before[k]?'up':'down')+'">'+fmt(before[k])+' → '+fmt(after[k])+unit(k)+'</b></span>').join('')+(!rows.length?'<span>Číselné staty se nezmění. Případnou jedinečnou vlastnost posuď zvlášť.</span>':'')+'</div>';
 }
 function render(){
  clearTimeout(timer);const s=game.state,a=game.stats();
- $('statusbar').innerHTML='<span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>Sir Šmik <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div><div class="currencies"><span>◈ '+s.gold+'</span><span>✦ '+s.essence+'</span></div>';
+ if(!s.run)game.introduceChapter();
+ const currency=(key,label,kind,value)=>'<button class="currency '+key+'" data-action="currency" data-value="'+key+'" aria-label="'+label+': '+value+'">'+itemArt(kind)+'<span><small>'+label+'</small><b>'+ (value>=10000?fmt(Math.round(value/100)/10)+'k':value)+'</b></span></button>';
+ $('statusbar').innerHTML='<div class="hero-status"><span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>Sir Šmik <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div></div><div class="currencies">'+currency('gold','Zlato','coin',s.gold)+currency('essence','Esence','orb',s.essence)+'</div>';
  $('sound-button').setAttribute('aria-label',s.settings.sound?'Vypnout zvuk':'Zapnout zvuk');$('sound-button').classList.toggle('on',s.settings.sound);$('sound-button').textContent=s.settings.sound?'♫':'♪';
  $('points-dot').hidden=!s.points;
  for(const b of document.querySelectorAll('.bottom-tabs button')){b.classList.toggle('active',b.dataset.value===tab);b.setAttribute('aria-current',b.dataset.value===tab?'page':'false');}
- $('view').innerHTML=({map:mapView,road:roadView,character:characterView,inventory:inventoryView}[tab]||mapView)();
+ $('view').setAttribute('data-view',tab);
+ const content=({map:mapView,road:roadView,character:characterView,inventory:inventoryView}[tab]||mapView)();
+ $('view').innerHTML=['character','inventory'].includes(tab)?'<div class="screen-scroll">'+content+'</div>':content;
  renderDialog();save();schedule();
 }
 function heading(kicker,title,right=''){return '<div class="heading"><div><small class="eyebrow">'+kicker+'</small><h2>'+title+'</h2></div>'+right+'</div>';}
@@ -56,17 +93,11 @@ function mapView(){
  }
  const markers=D.areas.map((p,i)=>'<button class="map-pin '+(i>=s.unlocked?'locked':'')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+'" data-action="area" data-value="'+i+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled':'')+' aria-label="'+esc(p.name)+(i>=s.unlocked?' · zamčeno':'')+'"><b>'+(s.records[i].clears?'⚑':i<s.unlocked?'✕':'•')+'</b><span>'+p.short+'</span></button>').join('');
  const pending=s.pending.length?'<div class="resume-banner">'+btn('Prohlédnout nález','loot-show','','primary')+'</div>':'';
- return heading('PRVNÍ KAPITOLA','Pomezí Nedorozumění')+
- (s.run?'<div class="resume-banner"><div><strong>'+D.areas[s.run.area].name+'</strong><small>Výprava čeká · místo '+(s.run.index+1)+' / '+s.run.rooms.length+'</small></div>'+btn('Pokračovat →','tab','road','primary')+'</div>':'')+pending+
- '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+paths+'</svg>'+markers+'<span class="map-caption">NE KAŽDÁ CESTA VEDE K POKLADU.<br>NĚKTERÉ VEDOU K ÚČETNÍMU.</span></div>'+
- '<section class="panel location"><div class="heading"><h3>'+p.name+'</h3><span class="pill">Hrozba '+(s.selectedChallenge+1)+'</span></div><p>'+p.quest+'</p><p class="muted">'+p.hint+'</p>'+
- '<div class="location-facts"><span>7 míst · boss na konci</span><span>Kořist úrovně '+(p.level+s.selectedChallenge*2)+'</span></div>'+
- (rec.clears?'<div class="difficulty">'+btn('−','difficulty','-1','small',s.selectedChallenge===0)+'<span>Hrozba '+(s.selectedChallenge+1)+' · '+rec.clears+' vítězství</span>'+btn('+','difficulty','1','small',s.selectedChallenge>=rec.highest+1)+'</div>':'')+
- btn(s.run?'Nejprve dokonči rozehranou výpravu':'Vyrazit na výpravu →','start','','primary wide',!!s.run||!!s.pending.length)+
- '</section>'+recipeCard(s.selectedArea)+
- (!s.run?'<div class="camp-actions">'+btn('Odpočinout zdarma','rest','','secondary',s.hp>=game.stats().maxHp)+btn('Lektvar · 18 ◈','buy-potion','','secondary',s.gold<18)+'</div>':'')+
- (s.lastReport?reportCard(s.lastReport):'')+
- '<p class="footnote">Postup se ukládá v tomto prohlížeči. Zvuk zapneš tlačítkem ♪.</p>'+btn('Nový lokální průchod','reset-confirm','','text-button');
+ return '<section class="map-screen">'+heading('KAPITOLA I · '+s.records.filter(x=>x.clears).length+'/5','Pomezí Nedorozumění',btn('Příběh','chapter','','secondary'))+
+ (s.run?'<small class="resume-note">Výprava čeká: '+D.areas[s.run.area].name+' · '+(s.run.index+1)+'/7</small>':'')+
+ '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+paths+'</svg>'+markers+'</div>'+
+ '<footer class="action-dock"><div class="location-summary"><strong>'+p.name+'</strong><small>'+(rec.clears?'Ozvěna · ':'')+'Hrozba '+(s.selectedChallenge+1)+' · kořist úr. '+(p.level+s.selectedChallenge*2)+'</small></div><div class="dock-tools">'+btn('Tábor','camp-menu','','secondary')+btn('O místě','location','','secondary')+'</div>'+pending+
+ btn(s.run?'Pokračovat ve výpravě →':rec.clears?'Vstoupit do ozvěny →':'Vyrazit na výpravu →',s.run?'tab':'start',s.run?'road':'','primary wide',!!s.pending.length)+'</footer></section>';
 }
 function recipeCard(area){
  const p=D.areas[area],r=game.state.records[area],sig=D.signatures[p.recipe];
@@ -76,26 +107,27 @@ function reportCard(r){return '<section class="panel report"><small class="eyebr
 function logs(rows){if(!rows?.length)return '';return '<details class="log-details"><summary>Průběh posledního boje</summary><ol>'+rows.map(x=>'<li class="'+x.type+'">'+esc(x.text)+'</li>').join('')+'</ol></details>';}
 function roadView(){
  const s=game.state,r=s.run;
- if(!r)return heading('VÝPRAVA','Cesta čeká')+(s.lastReport?reportCard(s.lastReport):'<section class="panel"><p>Vyber místo na mapě a vydej se po stopě jeho kletby.</p></section>')+btn('Otevřít mapu','tab','map','primary wide');
+ if(!r)return '<section class="road-screen"><div class="screen-scroll">'+heading('VÝPRAVA','Cesta čeká')+(s.lastReport?reportCard(s.lastReport):'<section class="panel"><p>Vyber místo na mapě a vydej se po stopě královy kletby.</p></section>')+'</div><footer class="action-dock">'+btn('Otevřít mapu','tab','map','primary wide')+'</footer></section>';
  const p=D.areas[r.area],b=r.battle,room=game.room(),t=b?.tactic,n=s.notice;
  const progress='<div class="route-progress" aria-label="Postup výpravou">'+r.rooms.map((id,i)=>'<i class="'+(i<r.index?'done':i===r.index?'current':'')+'">'+(i<r.index?'✓':id==='boss'?'♛':i+1)+'</i>').join('')+'</div>';
- const art=b?b.art:room.id==='scribe'?4:room.id==='boss'?p.bossArt:room.id==='gate'?0:null;
+ const art=n?null:b?b.art:room.id==='scribe'?4:room.id==='boss'?p.bossArt:room.id==='gate'?0:null;
  const stage='<section class="stage scene-'+p.scene+' '+(b?'fighting':'')+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+
  '<div class="stage-label">'+(b?(b.boss?'CÍL ZAKÁZKY':'STŘETNUTÍ'):'MÍSTO '+Math.min(r.index+1,r.rooms.length)+' / '+r.rooms.length)+'</div>'+
- (art!==null?atlas(art,'portrait enemy-portrait '+(b?.last==='attack'||b?.last==='crit'?'hit':'')):'<div class="location-emblem">'+({well:'💍',camp:'✦',bell:'♧',merchant:'◈',wounded:'✉',cache:'◇'}[room.id]||'⌘')+'</div>')+
+ (art!==null?atlas(art,'portrait enemy-portrait '+(b?.last==='attack'||b?.last==='crit'?'hit':'')):'<div class="location-emblem">'+(n?'✓':({well:'💍',camp:'✦',bell:'♧',merchant:'◈',wounded:'✉',cache:'◇'}[room.id]||'⌘'))+'</div>')+
  (b?'<div class="enemy-meter"><strong>'+esc(b.name)+'</strong>'+health(b.hp,b.maxHp,'enemy')+'<small>'+b.hp+' / '+b.maxHp+'</small></div>':'')+
- '<div class="hero-token"><img src="assets/sir-smik.webp" alt="Sir Šmik"><span class="held-weapon" aria-label="Nasazená zbraň">'+(s.equipped.weapon?D.itemById[s.equipped.weapon.kind].icon:'✊')+'</span></div></section>';
- let content='';
- if(n){content='<section class="panel outcome"><small class="eyebrow">NÁSLEDEK TVÉ CESTY</small><h2>'+esc(n.title)+'</h2><p>'+esc(n.text)+'</p>'+logs(n.logs)+btn('Pokračovat →','continue','','primary wide')+'</section>';}
+ '<div class="hero-token"><img src="assets/sir-smik.webp" alt="Sir Šmik"></div></section>';
+ let content='',actions='';
+ if(n){content='<section class="panel outcome"><small class="eyebrow">NÁSLEDEK TVÉ CESTY</small><h2>'+esc(n.title)+'</h2><p>'+esc(n.text)+'</p>'+logs(n.logs)+'</section>';actions=btn('Pokračovat →','continue','','primary wide');}
  else if(b&&!t){
-  content='<section class="panel battle-panel"><div class="heading"><strong>'+(paused?'Boj pozastaven':b.turn==='player'?'Šmik připravuje útok':'Tah protivníka')+'</strong>'+btn(paused?'▶':'Ⅱ','pause','','icon-button')+'</div><ol class="combat-log" aria-live="polite">'+b.log.slice(-4).map(x=>'<li class="'+x.type+'">'+esc(x.text)+'</li>').join('')+'</ol><p class="muted">'+esc(b.hint)+'</p><div class="battle-controls">'+btn('Lektvar '+s.potions,'potion','','secondary',!s.potions||s.hp>=game.stats().maxHp)+btn(s.settings.speed+'× tempo','speed','','secondary')+'</div></section>';
+  content='<section class="panel battle-panel"><div class="heading"><strong>'+(paused?'Boj pozastaven':b.turn==='player'?'Šmik připravuje útok':'Tah protivníka')+'</strong></div><ol class="combat-log" aria-live="polite">'+b.log.slice(-4).map(x=>'<li class="'+x.type+'">'+esc(x.text)+'</li>').join('')+'</ol><details><summary>Chování protivníka</summary><p>'+esc(b.hint)+'</p></details></section>';
+  actions='<div class="dock-tools">'+btn(paused?'Pokračovat':'Pozastavit','pause','','secondary')+btn('Lektvar · '+s.potions,'potion','','secondary',!s.potions||s.hp>=game.stats().maxHp)+btn(s.settings.speed+'× tempo','speed','','secondary')+'</div>';
  }else{
   const c=t||room;
-  content='<section class="decision '+(t?'tactical':'')+'" id="swipe-card"><small class="eyebrow">'+(t?'TVŮJ TAH · BOJ ČEKÁ':'ROZHODNUTÍ')+'</small><h2>'+esc(c.title)+'</h2><p>'+esc(c.text)+'</p><div class="swipe-feedback" aria-hidden="true"><span>← '+esc(c.choices[0])+'</span><span>'+esc(c.choices[1])+' →</span></div><div class="choices">'+btn('<span>←</span><strong>'+esc(c.choices[0])+'</strong><small>'+esc(c.hints?.[0]||'Prostor, obratnost a připravená cesta.')+'</small>','choice','left','choice')+btn('<span>→</span><strong>'+esc(c.choices[1])+'</strong><small>'+esc(c.hints?.[1]||'Rozhoduje síla zbraně.')+'</small>','choice','right','choice')+'</div><small class="swipe-hint">Táhni kartou nebo klepni na volbu.</small></section>';
+  content='<section class="decision '+(t?'tactical':'')+'" id="swipe-card"><small class="eyebrow">'+(t?'TVŮJ TAH · BOJ ČEKÁ':'ROZHODNUTÍ')+'</small><h2>'+esc(c.title)+'</h2><p>'+esc(c.text)+'</p><div class="swipe-feedback" aria-hidden="true"><span>← '+esc(c.choices[0])+'</span><span>'+esc(c.choices[1])+' →</span></div><small class="swipe-hint">Táhni kartou nebo klepni dole na volbu.</small></section>';
+  actions='<div class="choices">'+c.choices.map((label,i)=>btn('<span>'+(i?'→':'←')+'</span><strong>'+esc(label)+'</strong>','choice',i?'right':'left','choice')).join('')+'</div>'+(t?btn('Lektvar · '+s.potions,'potion','','secondary wide',!s.potions||s.hp>=game.stats().maxHp):'');
  }
- return heading('VÝPRAVA',p.name,'<span class="pill">'+(r.index+1)+' / '+r.rooms.length+'</span>')+progress+stage+content+(t?btn('🧪 Lektvar · '+s.potions,'potion','','secondary wide',!s.potions||s.hp>=game.stats().maxHp):'')+
- '<div class="expedition-footer">'+btn('Výbava','tab','character','text-button')+
- (!b?btn('Vrátit se do tábora','retreat-confirm','','text-button'):'<small>Otevření jiné karty boj pozastaví.</small>')+'</div>';
+ return '<section class="road-screen">'+heading(r.replay?'OZVĚNA KLETBY':'VÝPRAVA',p.name,'<span class="pill">'+Math.min(r.index+1,r.rooms.length)+' / '+r.rooms.length+'</span>')+progress+stage+'<div class="road-copy">'+content+'</div><footer class="action-dock">'+actions+
+ (!b?btn('Ukončit výpravu','retreat-confirm','','text-button'):'<small class="pause-note">Jiná karta boj pozastaví.</small>')+'</footer></section>';
 }
 const growthDefs=[
  ['might','⚔','Síla','Za bod +1,2 až 1,8 poškození. Silný útok snáze přeruší bosse.'],
@@ -105,31 +137,33 @@ const growthDefs=[
  ['luck','☘','Štěstí','Zvyšuje četnost i kvalitu nálezů. Každý bod výsledného štěstí přidá 2 % zlata z odměn.']
 ];
 function characterView(){
- const s=game.state,a=game.stats(),locked=!!s.run?.battle;
- const stats=[['⚔','Poškození',a.damageMin+'–'+a.damageMax],['✹','Krit',a.crit+' %'],['🛡','Zbroj',a.armor],['〰','Úhyb',a.evasion+' %'],['♥','Životy',a.maxHp],['♢','Blok',a.block+' %'],['♧','Trny',a.thorns+' %'],['◒','Pohlcení',a.absorb],['↟','Rychlost',a.haste+' %'],['☘','Štěstí',a.luck+' %'],['◈','Bonus zlata',a.gold+' %'],['✶','Bonus XP',a.xpBonus+' %'],['♨','Kradení života',a.leech+' %']];
+ const s=game.state,a=game.stats(),locked=!!s.run?.battle,breakdown=game.statBreakdown();
  return heading('POSTAVA','Sir Šmik',btn('Kronika','journal','','secondary'))+
  '<section class="hero-sheet panel"><img src="assets/sir-smik.webp" alt="Sir Šmik"><div><small class="eyebrow">ÚROVEŇ '+s.level+'</small><h3>Lovec prokletých míst</h3><span>'+s.xp+' / '+game.threshold()+' XP</span>'+health(s.xp,game.threshold(),'xp')+'<small>'+s.points+' bodů k rozdělení</small></div></section>'+
- '<div class="growth-grid">'+growthDefs.map(([id,icon,label,help])=>'<div class="growth"><button data-action="help" data-value="'+id+'" aria-label="Vysvětlit '+label+'"><span>'+icon+' '+label+'</span><strong>'+s.growth[id]+'</strong></button>'+btn('+','growth',id,'add-point',!s.points||locked)+'</div>').join('')+'</div>'+
+ '<p class="muted">Klepnutím na atribut zjistíš jeho účinky. Zelené číslo je bonus ze všech nasazených předmětů.</p><div class="growth-grid">'+growthDefs.map(([id,icon,label])=>'<div class="growth"><button data-action="help" data-value="'+id+'" aria-label="Vysvětlit '+label+'"><span>'+icon+' '+label+' ⓘ</span><strong>'+(id==='luck'?statFormula('luck',breakdown):s.growth[id]+' <em class="gear-bonus">+ 0</em>')+'</strong><small>'+(id==='luck'?'základ + výbava = celkem':'rozdělené body + výbava')+'</small></button>'+btn('+','growth',id,'add-point',!s.points||locked)+'</div>').join('')+'</div>'+
  (locked?'<p class="muted">Během souboje je výcvik a převlékání uzamčené. Návratem do Výpravy boj pokračuje.</p>':'')+
  heading('NASAZENO','Výbava')+'<div class="equipment-grid">'+Object.entries(D.slots).map(([slot,label])=>{
- const it=s.equipped[slot];return '<button class="equipment" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'"><small>'+label+'</small><span>'+(it?D.itemById[it.kind].icon:'＋')+'</span><b>'+esc(it?name(it):'Prázdné místo')+'</b></button>';
+ const it=s.equipped[slot];return '<button class="equipment" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'"><small>'+label+'</small>'+(it?itemArt(it.kind):'<span>＋</span>')+'<b>'+esc(it?name(it):'Prázdné místo')+'</b></button>';
  }).join('')+'</div>'+
  (a.traits.length?'<section class="panel"><small class="eyebrow">AKTIVNÍ KOMBINACE</small>'+a.traits.map(t=>'<p><strong>'+D.traits[t].name+'</strong><br>'+D.traits[t].effect+'</p>').join('')+'</section>':'')+
- heading('VÝSLEDNÉ HODNOTY','Bojové parametry')+'<div class="stats-grid">'+stats.map(([icon,label,v])=>'<div><small>'+icon+' '+label+'</small><strong>'+v+'</strong></div>').join('')+'</div><p class="footnote">Zbroj tlumí až 65 % poškození. Pohlcení odečítá pevnou hodnotu. Kradení života léčí při zásahu. Rychlost zkracuje čekání na tvůj útok.</p>';
+ heading('ZÁKLAD + VÝBAVA = CELKEM','Účinky postavy')+'<div class="stats-grid">'+statRows.map(([key,label])=>btn('<small>'+label+' ⓘ</small>'+statFormula(key,breakdown),'stat-help',key,'stat-tile')).join('')+'</div><p class="footnote">Základ zahrnuje výcvik. Výbava zahrnuje všechny nasazené kusy i jejich afixy. Zobrazený součet odpovídá hře po zaokrouhlení a uplatnění limitů. Klikni na hodnotu pro podrobnosti.</p>';
 }
 function inventoryView(){
  const s=game.state,items=s.inventory.filter(it=>filter==='all'||D.itemById[it.kind].slot===filter);
  return heading('INVENTÁŘ A KOVÁRNA','Každý kus má příběh','<span class="pill">'+s.inventory.length+' / '+s.capacity+'</span>')+
  '<div class="filters"><label for="slot-filter">Zobrazit</label><select id="slot-filter"><option value="all">Všechny předměty</option>'+Object.entries(D.slots).map(([id,n])=>'<option value="'+id+'"'+(id===filter?' selected':'')+'>'+n+'</option>').join('')+'</select>'+btn('Krámek','shop','','secondary')+'</div>'+
  (mergeBase?'<div class="merge-banner"><strong>Vyber dárce pro '+esc(name(s.inventory.find(x=>x.id===mergeBase)))+'</strong><p>Stejný slot. Nejdřív uvidíš výsledek; nic se nespotřebuje prohlížením.</p>'+btn('Zrušit výběr','merge-cancel','','text-button')+'</div>':'')+
- '<div class="inventory-grid">'+items.map(it=>'<button class="inventory-item '+(mergeBase&&D.itemById[s.inventory.find(x=>x.id===mergeBase)?.kind]?.slot===D.itemById[it.kind].slot&&mergeBase!==it.id?'compatible':'')+'" data-action="item" data-value="'+it.id+'" style="--rarity:'+D.rarityById[it.rarity].color+'"><span>'+D.itemById[it.kind].icon+'</span><small>'+D.rarityById[it.rarity].label+' · +'+it.rank+'</small><strong>'+esc(name(it))+'</strong>'+(it.trait?'<i>✦ Jedinečný</i>':'')+'</button>').join('')+'</div>'+
+ '<div class="inventory-grid">'+items.map(it=>'<button class="inventory-item '+(mergeBase&&D.itemById[s.inventory.find(x=>x.id===mergeBase)?.kind]?.slot===D.itemById[it.kind].slot&&mergeBase!==it.id?'compatible':'')+'" data-action="item" data-value="'+it.id+'" style="--rarity:'+D.rarityById[it.rarity].color+'">'+itemArt(it.kind)+'<small>'+D.rarityById[it.rarity].label+' · +'+it.rank+'</small><strong>'+esc(name(it))+'</strong><small>'+it.affixes.map(x=>D.statNames[x.id]+' +'+x.value+unit(x.id)).join(' · ')+'</small>'+(it.trait?'<i>✦ Jedinečný</i>':'')+'</button>').join('')+'</div>'+
  (!items.length?'<section class="empty panel"><h3>Kapsy mají místo.</h3><p>Boss vždy zanechá předmět. Ostatní nálezy tě čekají ve skrýších a truhlách.</p>'+btn('Vyrazit pro kořist','tab','map','secondary')+'</section>':'')+
  '<section class="panel"><small class="eyebrow">ŠLECHTĚNÍ VÝBAVY</small><h3>Základ + dárce → silnější kus</h3><p>Otevři předmět a zvol „Slučovat“. Základ si ponechá všechny své afixy. Shodné geny převezmou lepší hodnotu, volné místo může zdědit nový gen.</p><p>Dva kusy +3 stejné vzácnosti zvýší kategorii. Síla předmětu vždy vzroste nejméně o 10 %. Náhled vše ukáže předem.</p></section>'+
  recipeCard(s.selectedArea)+'<p class="footnote">Prodejem získáš zlato. Rozložením esenci pro slučování a cílenou výrobu.</p>';
 }
 function renderDialog(){
  const s=game.state,p=s.pending[0];let body='';
- if(p&&!dialog){
+ if(s.storyEvents.length&&!p&&!dialog){
+  const e=s.storyEvents[0],answered=e.response!==undefined;
+  body='<div class="story-copy"><small class="eyebrow">KAPITOLA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>Šmik: '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
+ }else if(p&&!dialog){
   if(p.type==='chest')body='<div class="chest-art scene-5"><div class="scene-art"></div><span>◇</span></div><small class="eyebrow">NALEZENÁ TRUHLA</small><h2 id="dialog-title">'+['Ošoupaná truhla','Železná truhla','Runová truhla'][p.tier]+'</h2><p>'+esc(p.note)+'</p><p class="muted">Uvnitř může být výbava. I bez předmětu získáš zlato a esenci.</p>'+btn('Otevřít truhlu','chest','','primary wide');
   else body='<small class="eyebrow">'+(p.previewOnly?'SPOJENÍ DOKONČENO':'NOVÝ NÁLEZ')+'</small><h2 id="dialog-title">'+(p.previewOnly?'Geny se ujaly.':'Tohle by se mohlo hodit.')+'</h2>'+lootCard(p.item)+genes(p.item)+compare(p.item)+'<p class="muted">'+esc(p.note)+'</p>'+
    (p.previewOnly?btn('Hotovo','preview-close','','primary wide'):'<div class="dialog-actions">'+btn('Nasadit','loot','equip','primary',s.inventory.length>=s.capacity&&!!s.equipped[D.itemById[p.item.kind].slot])+btn(s.inventory.length>=s.capacity?'Inventář plný':'Do inventáře','loot','take','secondary',s.inventory.length>=s.capacity)+btn('Prodat · '+game.price(p.item)+' ◈','loot','sell','secondary')+btn('Rozložit · '+(2+D.rarityIndex(p.item.rarity)*2)+' ✦','loot','salvage','secondary')+'</div>'+
@@ -144,12 +178,27 @@ function renderDialog(){
   if(preview)body='<small class="eyebrow">NÁHLED · ZATÍM NIC NESPOTŘEBOVÁNO</small><h2 id="dialog-title">'+(preview.promote?'Vzestup do vyšší kategorie':'Potomek tvé výbavy')+'</h2>'+lootCard(preview.item)+genes(preview.item)+'<p>Zaručená základní síla: '+Math.round(game.basePower(preview.item)*10)/10+'. Geny uvedené výše zůstanou nebo zesílí.</p><p>'+preview.mutation+'</p><div class="dialog-actions">'+btn('Sloučit · '+preview.cost+' ✦','merge-confirm','','primary',s.essence<preview.cost||!!s.run?.battle)+btn('Zpět','close','','secondary')+'</div><small>Potvrzení spotřebuje oba rodiče.</small>';
  }else if(dialog?.type==='shop'){
   const area=D.areas[s.selectedArea];
-  body='<small class="eyebrow">KUPEC · '+area.name+'</small><h2 id="dialog-title">Víš, co kupuješ.</h2><p>Uvedená vzácnost, úroveň a afix jsou zaručené.</p>'+game.shopList().map((row,i)=>'<div class="shop-row"><div><strong>'+D.itemById[row.kind].icon+' '+D.itemById[row.kind].label+'</strong><small>'+row.rarity+' · úroveň '+row.ilvl+' · Poškození +'+(3+row.ilvl)+'</small></div>'+btn(row.price+' ◈','buy',i,'secondary',s.gold<row.price||!!s.pending.length||!!s.run?.battle)+'</div>').join('')+
+  body='<small class="eyebrow">KUPEC · '+area.name+'</small><h2 id="dialog-title">Víš, co kupuješ.</h2><p>Uvedená vzácnost, úroveň a afix jsou zaručené.</p>'+game.shopList().map((row,i)=>'<div class="shop-row">'+itemArt(row.kind)+'<div><strong>'+D.itemById[row.kind].label+'</strong><small>'+D.rarityById[row.rarity].label+' · úroveň '+row.ilvl+' · Poškození +'+(3+row.ilvl)+'</small></div>'+btn(row.price+' ◈','buy',i,'secondary',s.gold<row.price||!!s.pending.length||!!s.run?.battle)+'</div>').join('')+
    '<div class="shop-row"><div><strong>🧪 Léčivý elixír</strong><small>Obnoví 40 % životů. V boji je po ruce.</small></div>'+btn('18 ◈','buy-potion','','secondary',s.gold<18)+'</div>'+btn('Zavřít','close','','text-button wide');
+ }else if(dialog?.type==='location'){
+  const p=D.areas[s.selectedArea],rec=s.records[s.selectedArea];
+  body='<h2 id="dialog-title">'+p.name+'</h2><p>'+(rec.clears?'Místo je osvobozené. Vstoupíš do ozvěny někdejší kletby a získáš skutečnou kořist; příběh se nevrací zpět.':p.quest)+'</p><p>'+p.hint+'</p><small>7 míst · '+p.boss+' · kořist úrovně '+(p.level+s.selectedChallenge*2)+'</small>'+(rec.clears?'<div class="difficulty">'+btn('−','difficulty','-1','small',s.selectedChallenge===0)+'<span>Hrozba '+(s.selectedChallenge+1)+'</span>'+btn('+','difficulty','1','small',s.selectedChallenge>=rec.highest+1)+'</div>':'')+btn('Zpět na mapu','close','','primary wide');
+ }else if(dialog?.type==='camp-menu'){
+  body='<h2 id="dialog-title">Tábor</h2><p>Odpočinek mimo výpravu je zdarma. Lektvary nosíš v opasku.</p><div class="dialog-actions">'+btn('Odpočinout','rest','','secondary',!!s.run||s.hp>=game.stats().maxHp)+btn('Lektvar · 18 zlata','buy-potion','','secondary',s.gold<18)+btn('Poslední výprava','report','','secondary',!s.lastReport)+btn('Kronika','journal','','secondary')+'</div><p>Postup se ukládá v tomto prohlížeči. Na jiném zařízení nebude automaticky dostupný.</p>'+btn('Nový lokální průchod','reset-confirm','','text-button wide')+btn('Zpět na mapu','close','','primary wide');
+ }else if(dialog?.type==='report'){
+  body='<h2 id="dialog-title">Poslední výprava</h2>'+(s.lastReport?reportCard(s.lastReport):'<p>Zatím nemáš dokončenou výpravu.</p>')+btn('Zavřít','close','','primary wide');
+ }else if(dialog?.type==='chapter'){
+  body='<h2 id="dialog-title">'+D.chapter.title+'</h2><p>Král drží Pomezí v nekončícím večeru. Osvoboď jeho poddané a zlom Korunu posledního světla.</p><ol class="chapter-list">'+D.areas.map((p,i)=>'<li><strong>'+(s.records[i].clears?'✓ ':i<s.unlocked?'→ ':'')+p.name+'</strong><p>'+(s.records[i].clears?'Osvobozeno. Dostupné ozvěny pro další kořist.':i<s.unlocked?p.quest:'Pokračování se odkryje po předchozí výpravě.')+'</p></li>').join('')+'</ol>'+btn('Zpět na mapu','close','','primary wide');
+ }else if(dialog?.type==='currency'){
+  const gold=dialog.id==='gold';body='<h2 id="dialog-title">'+(gold?'Zlato':'Esence')+'</h2><p class="currency-total">'+(gold?s.gold:s.essence)+'</p><p>'+(gold?'Za zlato nakupuješ výbavu a lektvary. Získáváš ho bojem, některými rozhodnutími, z truhel a prodejem předmětů. Štěstí zvyšuje odměny, ne prodejní ceny.':'Esence slouží ke slučování a výrobě jedinečných předmětů. Získáváš ji za boj, rozkladem výbavy a z truhel bez předmětu. Zlato ji nenahrazuje.')+'</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='journal'){
   body='<h2 id="dialog-title">Kronika Sira Šmika</h2><p>Výpravy se mění. Někteří lidé si tě pamatují.</p><ol class="journal">'+s.journal.slice().reverse().map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='help'){
-  const def=growthDefs.find(x=>x[0]===dialog.id);body='<h2 id="dialog-title">'+def[2]+'</h2><p>'+def[3]+'</p>'+btn('Rozumím','close','','primary wide');
+  const def=growthDefs.find(x=>x[0]===dialog.id),links={might:['damageMin','damageMax'],grit:['maxHp','armor'],agility:['crit','evasion'],intelligence:['xpBonus','shieldCap'],luck:['luck','gold']}[dialog.id];body='<h2 id="dialog-title">'+def[2]+'</h2><p>'+def[3]+'</p><p>Rozdělené body: '+s.growth[dialog.id]+'. '+(dialog.id==='luck'?'Výbava se přičítá k výslednému štěstí.':'Výbava teď posiluje výsledné parametry přímo, nikoli tento základní atribut.')+'</p>'+links.map(k=>btn(statRows.find(x=>x[0]===k)[1]+' ⓘ '+statFormula(k),'stat-help',k,'secondary wide')).join('')+btn('Rozumím','close','','primary wide');
+ }else if(dialog?.type==='stat'){
+  const key=dialog.id,b=game.statBreakdown(),cap=D.statCaps[key];
+  const sources=Object.values(s.equipped).filter(Boolean).map(it=>({it,amount:game.stats({[D.itemById[it.kind].slot]:it})[key]-b.base[key]})).filter(x=>Math.abs(x.amount)>.001);
+  body='<h2 id="dialog-title">'+statRows.find(x=>x[0]===key)[1]+'</h2><small>ZÁKLAD + NASAZENÁ VÝBAVA = CELKEM</small>'+statFormula(key,b)+'<p>'+statExplanation(key)+'</p>'+(cap?'<p class="muted">Limit: '+cap+unit(key)+'. Součet před limitem: '+fmt(b.raw[key])+unit(key)+'. Nadlimitní body nemají další účinek.</p>':'')+'<section class="stat-sources"><small>NASAZENÉ PŘEDMĚTY OVLIVŇUJÍCÍ TUTO HODNOTU</small>'+(sources.length?sources.map(x=>'<p>'+esc(name(x.it))+'</p>').join(''):'<p>Žádný. Hodnotu nyní určuje základ a výcvik.</p>')+'</section>'+btn(dialog.back?'Zpět':'Rozumím','close','','primary wide');
  }else if(dialog?.type==='reset'){
   body='<h2 id="dialog-title">Začít nový lokální průchod?</h2><p>Aktuální postup uložíme do zálohy v tomto prohlížeči. Nová hra začne s prázdnou mapou a základní výbavou.</p><div class="dialog-actions">'+btn('Pokračovat ve stávající hře','close','','primary')+btn('Začít znovu','reset','','secondary')+'</div>';
  }else if(dialog?.type==='retreat'){
@@ -161,14 +210,18 @@ function renderDialog(){
  else{ $('overlay').innerHTML='';if(!wasHidden)previousFocus?.focus?.(); }
 }
 function schedule(){
- const b=game.state.run?.battle;if(!b||b.tactic||paused||tab!=='road'||dialog||game.state.pending.length||game.state.notice||document.hidden)return;
+ const b=game.state.run?.battle;if(!b||b.tactic||paused||tab!=='road'||dialog||game.state.storyEvents.length||game.state.pending.length||game.state.notice||document.hidden)return;
  timer=setTimeout(()=>{const before=game.state.metrics.bosses;game.step();sound(game.state.metrics.bosses>before?'reward':game.state.run?.battle?.last||'tap');render();},(b.turn==='player'?game.attackDelay():1000)/game.state.settings.speed);
 }
 function close(){dialog=null;selected=null;donor=null;}
 function dispatch(action,value){
- let result=true;const s=game.state;
+ let result=true;const s=game.state,beforeStats=game.stats();
  switch(action){
   case 'tab':tab=value;break;
+  case 'story-reply':result=game.storyReply(Number(value));break;
+  case 'story-close':result=game.closeStory();break;
+  case 'chapter':case 'location':case 'camp-menu':case 'report':dialog={type:action};break;
+  case 'currency':dialog={type:'currency',id:value};break;
   case 'area':if(Number(value)<s.unlocked){s.selectedArea=Number(value);s.selectedChallenge=0;}break;
   case 'difficulty':s.selectedChallenge=RPG.clamp(s.selectedChallenge+Number(value),0,s.records[s.selectedArea].highest+1);break;
   case 'start':result=game.start();if(result){tab='road';paused=false;}break;
@@ -182,6 +235,7 @@ function dispatch(action,value){
   case 'sound':s.settings.sound=!s.settings.sound;break;
   case 'growth':result=game.spend(value);break;
   case 'help':dialog={type:'help',id:value};break;
+  case 'stat-help':if(statRows.some(x=>x[0]===value))dialog={type:'stat',id:value,back:dialog};break;
   case 'journal':dialog={type:'journal'};break;
   case 'equipped':if(s.equipped[value])dialog={type:'item',slot:value};else toast('Tento slot čeká na nález.');break;
   case 'item':
@@ -208,10 +262,14 @@ function dispatch(action,value){
   case 'reset':try{localStorage.setItem(KEY+'-before-reset',JSON.stringify(s));game.state=game.fresh();close();mergeBase=null;tab='map';}catch{result=false;}break;
   case 'retreat-confirm':dialog={type:'retreat'};break;
   case 'retreat':result=game.retreat();if(result){close();tab='map';}break;
-  case 'close':close();break;
+  case 'close':if(dialog?.back)dialog=dialog.back;else close();break;
   default:return;
  }
  if(result===false)toast('Teď to nejde: zkontroluj suroviny, místo v inventáři nebo probíhající boj.');
+ else if(['equip','unequip'].includes(action)||(action==='loot'&&value==='equip')){
+  const after=game.stats(),changes=[['luck','Štěstí'],['gold','Zlato'],...statRows.filter(x=>!['luck','gold','damageMin'].includes(x[0]))].filter(([k])=>after[k]!==beforeStats[k]);
+  toast((action==='unequip'?'Sundáno. ':'Nasazeno. ')+(changes.length?changes.slice(0,3).map(([k,label])=>label+' '+fmt(beforeStats[k])+' → '+fmt(after[k])+unit(k)).join(' · '):'Číselné staty se nezměnily.')+' Podrobnosti v Postavě.');
+ }else if(action==='loot'&&value==='take')toast('Uloženo do inventáře. Bonusy získáš až po nasazení.');
  sound();render();
 }
 document.addEventListener('click',e=>{const button=e.target.closest('[data-action]');if(button&&!button.disabled)dispatch(button.dataset.action,button.dataset.value);});
@@ -222,7 +280,7 @@ document.addEventListener('pointerdown',e=>{
 });
 document.addEventListener('pointermove',e=>{
  if(!pointer||pointer.id!==e.pointerId)return;const dx=e.clientX-pointer.x,dy=e.clientY-pointer.y;
- if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>20){pointer.card.style.transform='';pointer=null;return;}
+ if(Math.abs(dy)>Math.abs(dx)&&Math.abs(dy)>20){pointer.card.style.transform='';pointer.card.classList.remove('drag-left','drag-right');if(pointer.card.hasPointerCapture?.(e.pointerId))pointer.card.releasePointerCapture(e.pointerId);pointer=null;return;}
  const delta=Math.max(-110,Math.min(110,dx));pointer.card.style.transform='translateX('+delta+'px) rotate('+(delta/18)+'deg)';
  pointer.card.classList.toggle('drag-left',dx<-20);pointer.card.classList.toggle('drag-right',dx>20);
 });

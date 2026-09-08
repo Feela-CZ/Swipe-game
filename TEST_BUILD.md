@@ -1,4 +1,6 @@
-# Testovací vydání — 7. září 2026
+# Testovací vydání — 8. září 2026
+
+Aktuální sada zahrnuje 29 doménových regresí, 300 seedovaných průchodů první věží a integrační test rozhraní. Nově ověřuje bonus štěstí po nasazení/sundání, součty a limity atributů, vnořené vysvětlivky, všechny ilustrace, úvod kapitoly a obnovu rozčteného dialogu, všech pět doher, ozvěny místo opětovného oživení krále a reakce na porážku/ústup. Kontrola mobilního rozložení je strukturální, nikoli měřením vykreslené geometrie. Browser ani fyzický telefon v této iteraci nebyl testován.
 
 ## Co ověřují aktuální testy
 
