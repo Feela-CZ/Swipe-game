@@ -10,13 +10,18 @@ Pevný rám používá dynamickou výšku viewportu a bezpečné okraje telefonu
 
 Výsledné staty zobrazují základ + součet nasazené výbavy = celkem; kliknutí vysvětluje účinek, limity a zdroje. Štěstí se zobrazuje v bodech a započítává se i do horního atributu. Detail předmětu ukazuje základní vlastnosti, afixy a změnu po nasazení. Všech 48 typů má ilustraci ve třech 4×4 atlasech. Překryv zbraně na portrétu je odstraněný.
 
+## Zvuková sada
+
+24 vlastních procedurálních efektů: zbraně, zásah, blok, úhyb, kritický zásah, lektvary, mince, truhly, kovárna a odměny. Bez převzatých nahrávek a bez hudby. Zapínání a uložená hlasitost jsou pod reproduktorem v horní liště. Na pozadí se zvuky zastaví; chyba zvuku neblokuje hru. Podrobnosti v assets/SOUND-DESIGN.md.
+
 ## Spuštění a ověření
 
 - Náhled: node preview-server.mjs, pak http://localhost:4173.
 - Herní regrese a 300 průchodů skutečným jádrem: node tests/game.test.mjs.
 - Integrace rozhraní bez skutečného prohlížeče: node tests/ui.test.mjs.
 - Vydání statických souborů: node build-site.mjs.
-- Načítání: data.js → story.js → engine.js → game.js. Bez bundleru a externích herních závislostí.
+- Zvukové signály a přehrávač: node tests/audio.test.mjs.
+- Načítání: data.js → story.js → engine.js → audio.js → game.js. Bez bundleru a externích herních závislostí.
 
 ## Herní cyklus
 

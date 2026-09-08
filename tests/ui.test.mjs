@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-const scripts=await Promise.all(['data.js','story.js','engine.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
+const scripts=await Promise.all(['data.js','story.js','engine.js','audio.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
 for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
 const handlers={},nodes=new Map(),storage=new Map(),timers=new Map();let seq=0;
@@ -58,7 +58,7 @@ assert.ok(css.includes('[hidden]{display:none!important}'));assert.ok(css.includ
 assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-modal="true"'));
 console.log('UI integration passed: initial render, four tabs, modal focus/inert state, shop/potions, branching expedition, saved resume, timed combat, tactical boss, loot and inventory. No real-browser layout or physical-device claim.');
 const seeded=new ctx.RPG.Game();seeded.state.growth.luck=2;const lucky=seeded.item('ring','rare',1,[['luck',3]]);seeded.state.inventory.push(lucky);
-storage.set('ne-ale-zabijim-v3',JSON.stringify(seeded.state));vm.runInContext(scripts[3],ctx);dismissStories();const loadedLuckyId=state().inventory[0].id;
+storage.set('ne-ale-zabijim-v3',JSON.stringify(seeded.state));vm.runInContext(scripts.at(-1),ctx);dismissStories();const loadedLuckyId=state().inventory[0].id;
 click('tab','inventory');click('item',loadedLuckyId);assert.ok(overlay().includes('Prsten štěstí'));assert.ok(overlay().includes('ZMĚNA PO NASAZENÍ'));
 assert.ok(overlay().includes('2 → 5'));click('stat-help','luck');assert.ok(overlay().includes('nikoli přímá šance'));click('close');assert.ok(overlay().includes('Detail předmětu'));
 click('equip',loadedLuckyId);assert.ok(nodes.get('toast').textContent.includes('Štěstí 2 → 5'));click('tab','character');assert.ok(view().includes('2 <em>+ 3</em> = <b>5'));
@@ -74,3 +74,4 @@ click('currency','gold');assert.ok(overlay().includes('Zlato'));click('close');c
 click('chapter');assert.ok(overlay().includes('Král, který zakázal soumrak'));click('close');
 assert.ok(css.includes('height:100dvh'));assert.ok(css.includes('env(safe-area-inset-bottom)'));assert.ok(css.includes('orientation:landscape'));
 console.log('Narrative UI and mobile layout structure passed. Real browser geometry and physical-device testing are not covered.');
+click('sound');assert.ok(overlay().includes('Zvuk hry'));assert.ok(overlay().includes('Hlasitost efektů'));handlers.input({target:{id:'audio-volume',value:'25'}});assert.equal(state().settings.volume,.25);click('sound-toggle');assert.ok(state().settings.sound);click('sound-toggle');assert.equal(state().settings.sound,false);click('close');sane();

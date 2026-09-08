@@ -2,6 +2,8 @@
 
 Aktuální sada zahrnuje 29 doménových regresí, 300 seedovaných průchodů první věží a integrační test rozhraní. Nově ověřuje bonus štěstí po nasazení/sundání, součty a limity atributů, vnořené vysvětlivky, všechny ilustrace, úvod kapitoly a obnovu rozčteného dialogu, všech pět doher, ozvěny místo opětovného oživení krále a reakce na porážku/ústup. Kontrola mobilního rozložení je strukturální, nikoli měřením vykreslené geometrie. Browser ani fyzický telefon v této iteraci nebyl testován.
 
+Zvuková iterace přidává tests/audio.test.mjs: 24 různých deterministických signálů bez clippingu, omezenou paměť a počet hlasů, cache, vypnutí, hlasitost, přechod na pozadí, chybějící zvukové API a skutečné bojové události. UI test ověřuje panel hlasitosti a uložení nastavení. Testy nenahrazují poslech na telefonu; ten zbývá prakticky ověřit.
+
 ## Co ověřují aktuální testy
 
 tests/game.test.mjs používá skutečný engine.js, nikoli oddělený aproximovaný model.

@@ -7,7 +7,9 @@ try{
  const current=localStorage.getItem(KEY);stored=current?JSON.parse(current):null;
  if(!current){for(const key of LEGACY){const old=localStorage.getItem(key);if(old){stored=JSON.parse(old);localStorage.setItem(KEY+'-legacy-backup',old);break;}}}
 }catch{storageError=true;}
-const game=new RPG.Game(stored);let tab='map',timer=null,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',audio=null,pointer=null,previousFocus=null;
+const game=new RPG.Game(stored);let tab='map',timer=null,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',pointer=null,previousFocus=null;
+const audio=new RPGSound.Player(window,()=>toast('Zvuk se nepodařilo spustit. Hra funguje dál; zkus jej znovu zapnout.'));
+let lastLootSound=game.state.pending[0]?.item?.id,lastAudioLevel=game.state.level;
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,value='',classes='',disabled=false)=>'<button class="'+classes+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
 const name=it=>it.name||(it.kind==='ring'&&it.affixes.some(x=>x.id==='luck')?'Prsten štěstí':D.itemById[it.kind].label);
@@ -43,12 +45,14 @@ function statExplanation(key){
  return descriptions[key]||'';
 }
 const atlas=(art,cls='portrait')=>'<div class="'+cls+' art-'+art+'" role="img" aria-label="'+esc(['Strážný','Krysa','Lovec','Výběrčí','Písař','Lesní duch'][art])+'"></div>';
-function sound(type='tap'){
- if(!game.state.settings.sound)return;
- try{audio??=new(window.AudioContext||window.webkitAudioContext)();audio.resume();
- const notes=type==='reward'?[392,494,587]:type==='crit'?[220,660]:type==='enemy'?[100]:[260];
- notes.forEach((freq,i)=>{const o=audio.createOscillator(),gain=audio.createGain(),time=audio.currentTime+i*.09;o.type=type==='enemy'?'triangle':'sine';o.frequency.value=freq;gain.gain.setValueAtTime(.055,time);gain.gain.exponentialRampToValueAtTime(.001,time+.16);o.connect(gain).connect(audio.destination);o.start(time);o.stop(time+.17);});
- }catch{/* Sound is optional; gameplay stays available. */}
+function sound(type='tap'){audio.configure(game.state.settings.sound,game.state.settings.volume);void audio.play(type);}
+function flushSounds(fallback=null){
+ const events=game.drainAudio(),item=game.state.pending[0]?.item;
+ if(item&&item.id!==lastLootSound){events.push(D.rarityIndex(item.rarity)>=2?'rare':'loot');lastLootSound=item.id;}
+ if(game.state.level>lastAudioLevel)events.push('level');lastAudioLevel=game.state.level;
+ if(!events.length&&fallback)events.push(fallback);
+ audio.configure(game.state.settings.sound,game.state.settings.volume);
+ events.slice(-6).forEach((cue,i)=>{if(cue==='strike')cue=RPGSound.weaponCue(game.state.equipped.weapon?.kind);void audio.play(cue,i*.09);});
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(game.state));}catch{if(!storageError){storageError=true;toast('Prohlížeč nemůže uložit postup. Nezavírej hru, dokud nepovolíš místní úložiště.');}}}
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),4000);}
@@ -72,7 +76,7 @@ function render(){
  if(!s.run)game.introduceChapter();
  const currency=(key,label,kind,value)=>'<button class="currency '+key+'" data-action="currency" data-value="'+key+'" aria-label="'+label+': '+value+'">'+itemArt(kind)+'<span><small>'+label+'</small><b>'+ (value>=10000?fmt(Math.round(value/100)/10)+'k':value)+'</b></span></button>';
  $('statusbar').innerHTML='<div class="hero-status"><span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>Sir Šmik <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div></div><div class="currencies">'+currency('gold','Zlato','coin',s.gold)+currency('essence','Esence','orb',s.essence)+'</div>';
- $('sound-button').setAttribute('aria-label',s.settings.sound?'Vypnout zvuk':'Zapnout zvuk');$('sound-button').classList.toggle('on',s.settings.sound);$('sound-button').textContent=s.settings.sound?'♫':'♪';
+ $('sound-button').setAttribute('aria-label','Nastavení zvuku · '+(s.settings.sound?'zapnuto':'vypnuto'));$('sound-button').classList.toggle('on',s.settings.sound);$('sound-button').textContent=s.settings.sound?'♫':'♪';
  $('points-dot').hidden=!s.points;
  for(const b of document.querySelectorAll('.bottom-tabs button')){b.classList.toggle('active',b.dataset.value===tab);b.setAttribute('aria-current',b.dataset.value===tab?'page':'false');}
  $('view').setAttribute('data-view',tab);
@@ -189,6 +193,8 @@ function renderDialog(){
   body='<h2 id="dialog-title">Poslední výprava</h2>'+(s.lastReport?reportCard(s.lastReport):'<p>Zatím nemáš dokončenou výpravu.</p>')+btn('Zavřít','close','','primary wide');
  }else if(dialog?.type==='chapter'){
   body='<h2 id="dialog-title">'+D.chapter.title+'</h2><p>Král drží Pomezí v nekončícím večeru. Osvoboď jeho poddané a zlom Korunu posledního světla.</p><ol class="chapter-list">'+D.areas.map((p,i)=>'<li><strong>'+(s.records[i].clears?'✓ ':i<s.unlocked?'→ ':'')+p.name+'</strong><p>'+(s.records[i].clears?'Osvobozeno. Dostupné ozvěny pro další kořist.':i<s.unlocked?p.quest:'Pokračování se odkryje po předchozí výpravě.')+'</p></li>').join('')+'</ol>'+btn('Zpět na mapu','close','','primary wide');
+ }else if(dialog?.type==='audio'){
+  body='<h2 id="dialog-title">Zvuk hry</h2><p>Údery, obrana, kořist a interakce. Hudba zatím není přidaná.</p>'+btn(s.settings.sound?'Vypnout zvuky':'Zapnout zvuky','sound-toggle','','primary wide')+'<label class="audio-volume" for="audio-volume">Hlasitost efektů <output id="audio-value">'+Math.round(s.settings.volume*100)+' %</output><input id="audio-volume" type="range" min="0" max="100" step="5" value="'+Math.round(s.settings.volume*100)+'"></label>'+btn('Vyzkoušet zvuk štítu','sound-preview','','secondary wide',!s.settings.sound||!s.settings.volume)+'<p class="muted">Nastavení se ukládá. Po přepnutí aplikace zvuky utichnou.</p>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='currency'){
   const gold=dialog.id==='gold';body='<h2 id="dialog-title">'+(gold?'Zlato':'Esence')+'</h2><p class="currency-total">'+(gold?s.gold:s.essence)+'</p><p>'+(gold?'Za zlato nakupuješ výbavu a lektvary. Získáváš ho bojem, některými rozhodnutími, z truhel a prodejem předmětů. Štěstí zvyšuje odměny, ne prodejní ceny.':'Esence slouží ke slučování a výrobě jedinečných předmětů. Získáváš ji za boj, rozkladem výbavy a z truhel bez předmětu. Zlato ji nenahrazuje.')+'</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='journal'){
@@ -211,13 +217,14 @@ function renderDialog(){
 }
 function schedule(){
  const b=game.state.run?.battle;if(!b||b.tactic||paused||tab!=='road'||dialog||game.state.storyEvents.length||game.state.pending.length||game.state.notice||document.hidden)return;
- timer=setTimeout(()=>{const before=game.state.metrics.bosses;game.step();sound(game.state.metrics.bosses>before?'reward':game.state.run?.battle?.last||'tap');render();},(b.turn==='player'?game.attackDelay():1000)/game.state.settings.speed);
+ timer=setTimeout(()=>{game.step();flushSounds();render();},(b.turn==='player'?game.attackDelay():1000)/game.state.settings.speed);
 }
 function close(){dialog=null;selected=null;donor=null;}
 function dispatch(action,value){
  let result=true;const s=game.state,beforeStats=game.stats();
+ audio.configure(s.settings.sound,s.settings.volume);void audio.unlock();
  switch(action){
-  case 'tab':tab=value;break;
+  case 'tab':audio.stop();tab=value;break;
   case 'story-reply':result=game.storyReply(Number(value));break;
   case 'story-close':result=game.closeStory();break;
   case 'chapter':case 'location':case 'camp-menu':case 'report':dialog={type:action};break;
@@ -232,7 +239,9 @@ function dispatch(action,value){
   case 'pause':paused=!paused;break;
   case 'potion':result=game.potion();break;
   case 'speed':s.settings.speed=s.settings.speed===1?2:1;break;
-  case 'sound':s.settings.sound=!s.settings.sound;break;
+  case 'sound':dialog={type:'audio'};break;
+  case 'sound-toggle':s.settings.sound=!s.settings.sound;audio.configure(s.settings.sound,s.settings.volume);if(s.settings.sound)sound('equip');break;
+  case 'sound-preview':sound('block');break;
   case 'growth':result=game.spend(value);break;
   case 'help':dialog={type:'help',id:value};break;
   case 'stat-help':if(statRows.some(x=>x[0]===value))dialog={type:'stat',id:value,back:dialog};break;
@@ -247,8 +256,8 @@ function dispatch(action,value){
   case 'salvage':result=game.sell(value,true);if(mergeBase===value)mergeBase=null;close();break;
   case 'merge-start':mergeBase=value;close();tab='inventory';filter='all';break;
   case 'merge-cancel':mergeBase=null;donor=null;break;
-  case 'merge-confirm':result=game.merge(mergeBase,donor);if(result){mergeBase=null;close();sound('reward');}break;
-  case 'chest':result=game.openChest();sound('reward');break;
+  case 'merge-confirm':result=game.merge(mergeBase,donor);if(result){mergeBase=null;close();game.cue('forge');}break;
+  case 'chest':result=game.openChest();if(result)game.cue('chest');break;
   case 'loot':result=game.loot(value);break;
   case 'preview-close':if(s.pending[0]?.previewOnly)s.pending.shift();break;
   case 'loot-show':dialog=null;break;
@@ -270,10 +279,14 @@ function dispatch(action,value){
   const after=game.stats(),changes=[['luck','Štěstí'],['gold','Zlato'],...statRows.filter(x=>!['luck','gold','damageMin'].includes(x[0]))].filter(([k])=>after[k]!==beforeStats[k]);
   toast((action==='unequip'?'Sundáno. ':'Nasazeno. ')+(changes.length?changes.slice(0,3).map(([k,label])=>label+' '+fmt(beforeStats[k])+' → '+fmt(after[k])+unit(k)).join(' · '):'Číselné staty se nezměnily.')+' Podrobnosti v Postavě.');
  }else if(action==='loot'&&value==='take')toast('Uloženo do inventáře. Bonusy získáš až po nasazení.');
- sound();render();
+ const interaction={equip:'equip',unequip:'equip',sell:'coins',salvage:'salvage',buy:'coins','buy-potion':'potion',craft:'forge',growth:'level',rest:'potion',tab:'page',choice:'page','story-reply':'page','story-close':'page'};
+ if(result!==false&&action==='loot')game.cue(({equip:'equip',sell:'coins',salvage:'salvage',take:'equip'})[value]||'tap');
+ if(result!==false&&interaction[action]&&(action!=='choice'||!game.audioEvents.length))game.cue(interaction[action]);
+ flushSounds(result===false||['sound-toggle','sound-preview','choice'].includes(action)?null:'tap');render();
 }
 document.addEventListener('click',e=>{const button=e.target.closest('[data-action]');if(button&&!button.disabled)dispatch(button.dataset.action,button.dataset.value);});
-document.addEventListener('change',e=>{if(e.target.id==='slot-filter'){filter=e.target.value;render();}});
+document.addEventListener('change',e=>{if(e.target.id==='slot-filter'){filter=e.target.value;render();}else if(e.target.id==='audio-volume'){render();sound('tap');}});
+document.addEventListener('input',e=>{if(e.target.id==='audio-volume'){const value=Number(e.target.value);if(!Number.isFinite(value))return;game.state.settings.volume=Math.max(0,Math.min(1,value/100));audio.configure(game.state.settings.sound,game.state.settings.volume);$('audio-value').textContent=Math.round(game.state.settings.volume*100)+' %';save();}});
 document.addEventListener('pointerdown',e=>{
  const card=e.target.closest('#swipe-card');if(!card||e.target.closest('button')||!$('overlay').hidden)return;
  pointer={id:e.pointerId,x:e.clientX,y:e.clientY,card};card.setPointerCapture?.(e.pointerId);
@@ -294,7 +307,7 @@ document.addEventListener('keydown',e=>{
  if(!$('overlay').hidden){
   if(e.key==='Escape'&&dialog){dispatch('close','');return;}
   if(e.key==='Tab'){
-   const list=[...$('overlay').querySelectorAll('button:not(:disabled),select')];if(!list.length){e.preventDefault();return;}
+   const list=[...$('overlay').querySelectorAll('button:not(:disabled),select,input:not(:disabled)')];if(!list.length){e.preventDefault();return;}
    if(e.shiftKey&&document.activeElement===list[0]){e.preventDefault();list.at(-1).focus();}
    else if(!e.shiftKey&&document.activeElement===list.at(-1)){e.preventDefault();list[0].focus();}
   }
@@ -302,7 +315,8 @@ document.addEventListener('keydown',e=>{
  }
  if(tab==='road'&&!e.target.matches('input,select,textarea')&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();dispatch('choice',e.key==='ArrowLeft'?'left':'right');}
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden){clearTimeout(timer);save();}else{render();}});
-window.addEventListener('pagehide',save);
+document.addEventListener('visibilitychange',()=>{audio.visibility(document.hidden);if(document.hidden){clearTimeout(timer);save();}else{render();}});
+window.addEventListener('pagehide',()=>{audio.visibility(true);save();});
+window.addEventListener('pageshow',()=>{audio.visibility(document.hidden);});
 render();if(storageError)toast('Ukládání není dostupné nebo původní pozici nelze přečíst. Zkontroluj nastavení prohlížeče.');
 })();

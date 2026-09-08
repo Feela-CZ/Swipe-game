@@ -7,7 +7,9 @@ const integer=(v,f=0)=>Number.isFinite(Number(v))?Math.max(0,Math.floor(Number(v
 const copy=v=>JSON.parse(JSON.stringify(v));
 const odds=[[.93,.069,.001],[.76,.215,.025],[.54,.36,.10],[.30,.41,.29],[.12,.39,.49],[.05,.40,.55]];
 class Game {
- constructor(raw=null,random=Math.random) {this.random=random;this.serial=0;this.state=this.fresh();if(raw)this.migrate(raw);}
+ constructor(raw=null,random=Math.random) {this.random=random;this.serial=0;this.audioEvents=[];this.state=this.fresh();if(raw)this.migrate(raw);}
+ cue(name){this.audioEvents.push(name);if(this.audioEvents.length>16)this.audioEvents.shift();}
+ drainAudio(){return this.audioEvents.splice(0);}
  uid(){return 'i'+(++this.serial)+'-'+Math.floor(this.random()*1e9).toString(36);}
  pick(list){return list[Math.min(list.length-1,Math.floor(this.random()*list.length))];}
  weighted(weights){let n=this.random()*weights.reduce((a,b)=>a+b,0);for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return i;}return weights.length-1;}
@@ -28,7 +30,7 @@ class Game {
   return {version:3,level:1,xp:0,points:0,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
    gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:24,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
-   unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,speed:1},lastReport:null,
+   unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1},lastReport:null,
    storyEvents:[],metrics:{choices:0,merges:0,runs:0,bosses:0}};
  }
  migrate(raw){
@@ -60,7 +62,7 @@ class Game {
    s.unlocked=clamp(integer(raw.unlocked,1),1,D.areas.length);
    s.selectedArea=clamp(integer(raw.selectedArea),0,s.unlocked-1);
    s.selectedChallenge=clamp(integer(raw.selectedChallenge),0,s.records[s.selectedArea].highest+1);
-   s.settings={sound:raw.settings?.sound===true,speed:raw.settings?.speed===2?2:1};
+   s.settings={sound:raw.settings?.sound===true,volume:Number.isFinite(raw.settings?.volume)?clamp(raw.settings.volume,0,1):.55,speed:raw.settings?.speed===2?2:1};
    s.lastReport=raw.lastReport||null;s.metrics={...s.metrics,...raw.metrics};
    s.run=raw.run&&D.areas[raw.run.area]&&Array.isArray(raw.run.rooms)?copy(raw.run):null;
    s.pending=(raw.pending||[]).map(p=>p.type==='item'?{...p,item:sanitize(p.item)}:copy(p)).filter(p=>p.type!=='item'||p.item);
@@ -231,7 +233,7 @@ class Game {
  }
  hurt(n){this.state.hp=Math.max(1,this.state.hp-n);}
  heal(n,overflow=false){const s=this.state,a=this.stats(),extra=Math.max(0,s.hp+n-a.maxHp);s.hp=Math.min(a.maxHp,s.hp+n);if(overflow&&s.run)s.run.shield=Math.min(a.shieldCap,s.run.shield+extra);}
- potion(){const s=this.state;if(!s.run||s.potions<1||s.hp>=this.stats().maxHp)return false;s.potions--;const n=Math.round(this.stats().maxHp*.40);this.heal(n);if(s.run.battle)this.log('Elixír obnovil '+n+' životů.','heal');return true;}
+ potion(){const s=this.state;if(!s.run||s.potions<1||s.hp>=this.stats().maxHp)return false;s.potions--;const n=Math.round(this.stats().maxHp*.40);this.heal(n);this.cue('potion');if(s.run.battle)this.log('Elixír obnovil '+n+' životů.','heal',false);return true;}
  fight(kind,elite=false,opening=''){
   const s=this.state,r=s.run,p=D.areas[r.area],level=p.level+r.challenge*2,boss=kind==='boss',def=boss?{name:p.boss,art:p.bossArt,style:'boss',hint:p.hint}:D.foeKinds[kind];
   const scale=1+level*.12;
@@ -241,7 +243,7 @@ class Game {
    if(boss){if(r.flags.silent)this.log(r.area===0?'Poplašný zvon je vyřazený. Výběrčí nedostane posilu.':r.area===1?'Kořeny jsou přetnuté: jelen se nebude léčit. Pěšina ti dovolí ustoupit.':'Připravená zkratka ti dává prostor k ústupu.','story');else this.log('Boss se připravil na tvůj příchod: má o 10 % více životů.','story');}
   if(opening)this.log(opening,'story');
  }
- log(text,type='info'){const b=this.state.run?.battle;if(b){b.log.push({text,type});b.log=b.log.slice(-30);b.last=type;}}
+ log(text,type='info',audio=true){const b=this.state.run?.battle;if(b){b.log.push({text,type});b.log=b.log.slice(-30);b.last=type;if(audio){const cue={attack:'strike',crit:'critical',dodge:'dodge',block:'block',heal:'shield',proc:'magic'}[type];if(cue)this.cue(cue);}}}
  step(){
   const s=this.state,r=s.run,b=r?.battle;if(!b||b.tactic||s.notice||s.pending.length)return false;
   if(b.turn==='player'){
@@ -264,6 +266,7 @@ class Game {
    if(b.boss&&!b.used.includes(phase)){
     const tells=[['Zvednuté kladivo','Výběrčí zvedá kladivo oběma rukama. Než udeří, můžeš ustoupit nebo ho zasáhnout.'],['Jelen sklání paroží','Jelen hrabe kopytem a sklání paroží přímo proti tobě. Chystá se vyrazit.'],['Předák se napřahuje','Předák zvedá krumpáč nad hlavu. Při nápřahu se odkrývá spoj v jeho kamenném krunýři.'],['Král zvedá palcát','Král se zapřel a napřahuje palcát. „Tohle půjde na váš účet.“'],['Kamení nad stezkou','Král zvedá korunu k balvanu nad stezkou. Můžeš se stáhnout do bezpečí, nebo ho zasáhnout, než kouzlo balvan uvolní.']][r.area];
     b.used.push(phase);b.tactic={phase,title:tells[0],text:tells[1],choices:['Ustoupit a krýt se','Přerušit silným úderem'],hints:[r.flags.silent?'Připravená cesta je volná.':r.flags.informed?'Vzpomínáš si na kupcovu radu.':'Místo k ústupu si musíš najít.','Během nápřahu je odkrytý.']};
+    this.cue('warning');
     return true;
    }
    b.turn='enemy';
@@ -310,12 +313,13 @@ class Game {
   if(tactical&&r.flags.blessed){n=Math.round(n*.35);r.flags.blessed=false;this.log('Vděk rodiny: ochrana zeslabila těžkou ránu.','proc');}
   let hurt=Math.max(0,Math.round((n-a.absorb)*(1-Math.min(.65,a.armor/(a.armor+85)))));
   const absorbed=Math.min(r.shield,hurt);r.shield-=absorbed;hurt-=absorbed;s.hp=Math.max(0,s.hp-hurt);
-  this.log(b.name+' → '+hurt+' poškození'+(absorbed?' · štít pohltil '+absorbed:''),'enemy');
-  const reflected=Math.round(hurt*a.thorns/100);if(reflected){b.hp=Math.max(0,b.hp-reflected);this.log('TRNY → '+reflected+' zpět nepříteli.','proc');}
-  if(s.hp<=0&&s.potions>0){s.potions--;s.hp=Math.round(a.maxHp*.35);this.log('Opasek tě zachránil. Automaticky spotřeboval jeden elixír.','heal');}
+  this.log(b.name+' → '+hurt+' poškození'+(absorbed?' · štít pohltil '+absorbed:''),'enemy');this.cue(hurt?'hurt':'shield');
+  const reflected=Math.round(hurt*a.thorns/100);if(reflected){b.hp=Math.max(0,b.hp-reflected);this.log('TRNY → '+reflected+' zpět nepříteli.','proc',false);this.cue('thorns');}
+  if(s.hp<=0&&s.potions>0){s.potions--;s.hp=Math.round(a.maxHp*.35);this.log('Opasek tě zachránil. Automaticky spotřeboval jeden elixír.','heal',false);this.cue('potion');}
  }
  win(){
   const s=this.state,r=s.run,b=r.battle,p=D.areas[r.area],first=!s.records[r.area].clears;
+  this.cue(b.escaped?'dodge':b.boss?'victory':'coins');
   const gold=this.gold(b.escaped?4:(b.boss?42:12)+p.level*3+r.challenge*8);
   const xp=(b.boss?40:18)+p.level*3+r.challenge*6;this.xp(xp);r.xp+=Math.round(xp*(1+this.stats().xpBonus/100));
   s.essence+=b.boss?8:2;s.hp=Math.min(this.stats().maxHp,s.hp+4);
@@ -338,6 +342,7 @@ class Game {
  }
  lose(){
   const s=this.state,r=s.run;const lost=Math.min(s.gold,Math.round(r.gold*.15)),logs=copy(r.battle?.log||[]);
+  this.cue('defeat');
   this.chapterReport(r.area,'loss');
   s.gold-=lost;s.lastReport={win:false,area:r.area,challenge:r.challenge,gold:r.gold-lost,xp:r.xp,marks:0,choices:r.choices.length,logs};
   s.run=null;s.hp=Math.round(this.stats().maxHp*.65);
