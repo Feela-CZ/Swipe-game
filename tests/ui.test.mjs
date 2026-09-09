@@ -3,6 +3,8 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
+assert.ok(html.includes('<title>Quest Happens · Výpravy Sira Šmika</title>'));
+assert.ok(html.includes('<h1>Quest Happens</h1>'));assert.ok(html.includes('lang="cs"'));
 const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
 for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
@@ -16,6 +18,7 @@ const window={addEventListener(){}};
 const ctx=vm.createContext({console,document,window,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
  setTimeout(fn,ms){const id=++seq;timers.set(id,{fn,ms});return id},clearTimeout(id){timers.delete(id)}});
 for(const source of scripts)vm.runInContext(source,ctx);
+assert.equal(ctx.RPGData.rarities.map(r=>r.label).join(','),'Common,Uncommon,Rare,Epic,Legendary,Mythic');
 // UI journey uses a durable character; starter difficulty is measured separately.
 const uiHero=new ctx.RPG.Game();uiHero.state.growth.might=12;uiHero.state.growth.grit=12;uiHero.rest();
 storage.set('ne-ale-zabijim-v3',JSON.stringify(uiHero.state));vm.runInContext(scripts.at(-1),ctx);

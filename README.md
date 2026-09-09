@@ -1,4 +1,4 @@
-# NE, ALE ZABÍJÍM — Výpravy Sira Šmika
+# Quest Happens — Výpravy Sira Šmika
 
 Přepracovaná mobilní fantasy hra. Jedním tahem rozhoduješ o cestě, pomoci postavám i odpovědi na bossův útok. Hraje se v prohlížeči, postup zůstává na zařízení.
 
