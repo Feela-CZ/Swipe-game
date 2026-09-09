@@ -9,6 +9,7 @@ try{
 }catch{storageError=true;}
 const game=new RPG.Game(stored);let tab='map',timer=null,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',pointer=null,previousFocus=null;
 const audio=new RPGSound.Player(window,()=>toast('Zvuk se nepodařilo spustit. Hra funguje dál; zkus jej znovu zapnout.'));
+let nameDraft=game.state.heroName||'Vendel';
 let lastLootSound=game.state.pending[0]?.item?.id,lastAudioLevel=game.state.level,motion='',characterPage='attributes',statPage=0;
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,value='',classes='',disabled=false)=>'<button class="'+classes+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
@@ -74,7 +75,7 @@ function compare(it){
 function render(){
  clearTimeout(timer);const s=game.state,a=game.stats();
  if(!s.run)game.introduceChapter();
- $('statusbar').innerHTML='<div class="hero-status"><span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>Sir Šmik <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div></div>';
+ $('statusbar').innerHTML='<div class="hero-status"><span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>'+esc(game.state.heroName||'Dobrodruh')+' <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div></div>';
  $('sound-button').setAttribute('aria-label','Otevřít menu');$('sound-button').textContent='Menu';
  $('points-dot').hidden=!s.points&&!s.levelNotice;
  for(const b of document.querySelectorAll('.bottom-tabs button')){b.classList.toggle('active',b.dataset.value===tab);b.setAttribute('aria-current',b.dataset.value===tab?'page':'false');}
@@ -109,7 +110,7 @@ function recipeCard(area){
  return '<section class="panel recipe">'+wallet(['essence'])+'<small class="eyebrow">CÍL DALŠÍ VÝPRAVY</small><h3>'+sig.name+'</h3><p>'+sig.effect+'</p><div class="progress-label"><span>'+p.material+'</span><b>'+r.marks+' / 4</b></div>'+health(r.marks,4,'xp')+'<small>'+ (r.marks<4?'Chybí '+(4-r.marks)+' · každý poražený boss přinese 2.':'Materiál je připravený.')+' Výroba stojí ještě 10 esence.</small>'+btn('Vyrobit jedinečný předmět','craft',area,'secondary wide',r.marks<4||game.state.essence<10||!!game.state.pending.length||!!game.state.run?.battle)+'</section>';
 }
 function reportCard(r){return '<section class="panel report"><small class="eyebrow">'+(r.win?'ZAKÁZKA SPLNĚNA':'POUČENÍ Z VÝPRAVY')+'</small><h3>'+D.areas[r.area].name+'</h3><div class="report-stats"><span>◈ '+r.gold+' zlata</span><span>✶ '+r.xp+' XP</span><span>◇ '+r.marks+' materiálu</span></div><p>'+r.choices+' rozhodnutí · hrozba '+(r.challenge+1)+'</p>'+(game.state.notice?'<p>'+esc(game.state.notice.text)+'</p>':'')+logs(r.logs)+'</section>';}
-function logs(rows){if(!rows?.length)return '';return '<details class="log-details"><summary>Průběh posledního boje</summary><ol>'+rows.map(x=>'<li class="'+x.type+'">'+esc(x.text)+'</li>').join('')+'</ol></details>';}
+function logs(rows){if(!rows?.length)return '';return '<details class="log-details"><summary>Průběh posledního boje</summary><ol>'+rows.map(x=>'<li class="'+x.type+'">'+esc(x.text.replace(/(?:Sir )?Šmik/g,()=>game.state.heroName||'Dobrodruh'))+'</li>').join('')+'</ol></details>';}
 function sceneSprite(art,classes){
  return '<div class="scene-sprite '+classes+' sheet-'+art.sheet+'" role="img" aria-label="'+esc(art.label)+'" data-scene-cell="'+art.cell+'" style="--sprite-x:'+(art.cell%art.columns*100/(art.columns-1))+'%;--sprite-y:'+(Math.floor(art.cell/art.columns)*100/(art.columns-1))+'%"></div>';
 }
@@ -123,11 +124,11 @@ function roadView(){
  const stage='<section class="stage scene-'+p.scene+' '+(b?'fighting ':'')+(motion?'motion-'+motion:'')+'" aria-label="'+esc(p.name)+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+
   sceneSprite(art,'encounter-token')+
  (b?'<div class="battle-bonuses"><div class="hero-bonuses">'+effects.hero.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div><div class="enemy-bonuses">'+effects.enemy.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></div><div class="enemy-meter"><strong>'+esc(b.name)+'</strong>'+health(b.hp,b.maxHp,'enemy')+'<small>'+b.hp+' / '+b.maxHp+'</small></div>':'')+
-  sceneSprite(RPGScenes.hero,'hero-token')+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
+  sceneSprite({...RPGScenes.hero,label:s.heroName||'Dobrodruh'},'hero-token')+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
  let content='',actions='';
  if(n){content='<section class="panel outcome"><h2>'+esc(n.title)+'</h2><p>'+esc(n.text)+'</p>'+logs(n.logs)+'</section>';actions=btn('Pokračovat →','continue','','primary wide');}
  else if(b&&!t){
-  content='<section class="panel battle-panel"><div class="heading"><strong>'+(paused?'Boj pozastaven':b.turn==='player'?'Šmik připravuje útok':'Tah protivníka')+'</strong></div><ol class="combat-log" aria-live="polite">'+b.log.slice(-4).map(x=>'<li class="'+x.type+'">'+esc(x.text)+'</li>').join('')+'</ol><details><summary>Chování protivníka</summary><p>'+esc(b.hint)+'</p></details></section>';
+  content='<section class="panel battle-panel"><div class="heading"><strong>'+(paused?'Boj pozastaven':b.turn==='player'?game.state.heroName+' připravuje útok':'Tah protivníka')+'</strong></div><ol class="combat-log" aria-live="polite">'+b.log.slice(-4).map(x=>'<li class="'+x.type+'">'+esc(x.text.replace(/(?:Sir )?Šmik/g,()=>game.state.heroName||'Dobrodruh'))+'</li>').join('')+'</ol><details><summary>Chování protivníka</summary><p>'+esc(b.hint)+'</p></details></section>';
   actions='<div class="dock-tools">'+btn(paused?'Pokračovat':'Pozastavit','pause','','secondary')+btn('Lektvar · '+s.potions,'potion','','secondary',!s.potions||s.hp>=game.stats().maxHp)+btn(s.settings.speed+'× tempo','speed','','secondary')+'</div>';
  }else{
   const c=t||room;
@@ -158,8 +159,8 @@ function characterView(){
   body='<div class="attribute-grid effect-grid">'+statRows.slice(statPage*6,statPage*6+6).map(([key,label])=>btn('<strong>'+label+'</strong><span>'+fmt(a[key])+unit(key)+'</span>'+(breakdown.bonus[key]?'<em>+'+fmt(breakdown.bonus[key])+unit(key)+'</em>':''),'stat-help',key,'attribute-tile')).join('')+'</div>'+
    '<div class="stat-pages">'+btn('←','stat-page',statPage-1,'secondary',statPage===0)+'<span>'+(statPage+1)+' / '+Math.ceil(statRows.length/6)+'</span>'+btn('→','stat-page',statPage+1,'secondary',statPage>=Math.ceil(statRows.length/6)-1)+'</div>';
  }
- return '<section class="character-screen">'+heading('','Sir Šmik',wallet())+
-  '<div class="character-summary"><img src="assets/sir-smik.webp" alt="Sir Šmik"><div><small>Úroveň '+s.level+'</small><h3>Dobrodruh na zkušební dobu</h3>'+health(s.xp,game.threshold(),'xp')+'<small>'+s.xp+' / '+game.threshold()+' XP</small></div>'+btn('Kronika','journal','','secondary')+'</div>'+
+ return '<section class="character-screen">'+heading('',s.heroName||'Dobrodruh',wallet())+
+  '<div class="character-summary"><img src="assets/sir-smik.webp" alt="Postava"><div><small>Úroveň '+s.level+'</small><h3>Dobrodruh na zkušební dobu</h3>'+health(s.xp,game.threshold(),'xp')+'<small>'+s.xp+' / '+game.threshold()+' XP</small></div>'+btn('Kronika','journal','','secondary')+'</div>'+
   '<nav class="character-sections" aria-label="Přehled postavy">'+[['attributes','Atributy'],['equipment','Nasazeno'],['effects','Účinky']].map(([id,label])=>'<button data-action="character-page" data-value="'+id+'" aria-pressed="'+(characterPage===id)+'">'+label+'</button>').join('')+'</nav>'+
   '<div class="character-content">'+body+'</div></section>';
 }
@@ -184,9 +185,11 @@ function inventoryView(){
 }
 function renderDialog(){
  const s=game.state,p=s.pending[0];let body='';
- if(s.storyEvents.length&&!p&&!dialog){
+ if(!s.heroName){
+  body='<div class="welcome-content"><h2 id="dialog-title">Quest Happens</h2><p>Velké výpravy. Pochybná kvalifikace.</p><img src="assets/sir-smik.webp" alt="Tvůj dobrodruh"><label for="hero-name">Jak se jmenuješ?</label><input id="hero-name" autocomplete="off" maxlength="24" value="'+esc(nameDraft)+'" aria-describedby="name-hint"><small id="name-hint">2–24 znaků. Návrh můžeš přepsat.</small>'+btn(s.run||s.level>1?'Pokračovat v příběhu':'Vstoupit do příběhu','name-confirm','','primary wide')+'</div>';
+ }else if(s.storyEvents.length&&!p&&!dialog){
   const e=s.storyEvents[0],answered=e.response!==undefined;
-  body='<div class="story-copy"><small class="eyebrow">KAPITOLA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>Šmik: '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
+  body='<div class="story-copy"><small class="eyebrow">KAPITOLA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>'+esc(s.heroName)+': '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
  }else if(p&&!dialog){
   if(p.type==='chest')body='<div class="chest-art scene-5"><div class="scene-art"></div>'+sceneSprite(RPGScenes.encounter({kind:'chest'},{area:0},null),'chest-token')+'</div><small class="eyebrow">NALEZENÁ TRUHLA</small><h2 id="dialog-title">'+['Ošoupaná truhla','Železná truhla','Runová truhla'][p.tier]+'</h2><p>'+esc(p.note)+'</p><p class="muted">Uvnitř může být výbava. I bez předmětu získáš zlato a esenci.</p>'+btn('Otevřít truhlu','chest','','primary wide');
   else body='<small class="eyebrow">'+(p.previewOnly?'SPOJENÍ DOKONČENO':'NOVÝ NÁLEZ')+'</small><h2 id="dialog-title">'+(p.previewOnly?'Geny se ujaly.':'Tohle by se mohlo hodit.')+'</h2>'+lootCard(p.item)+genes(p.item)+compare(p.item)+'<p class="muted">'+esc(p.note)+'</p>'+
@@ -224,7 +227,7 @@ function renderDialog(){
  }else if(dialog?.type==='currency'){
   const gold=dialog.id==='gold';body='<h2 id="dialog-title">'+(gold?'Zlato':'Esence')+'</h2><p class="currency-total">'+(gold?s.gold:s.essence)+'</p><p>'+(gold?'Za zlato nakupuješ výbavu a lektvary. Získáváš ho bojem, některými rozhodnutími, z truhel a prodejem předmětů. Štěstí zvyšuje odměny, ne prodejní ceny.':'Esence slouží ke slučování a výrobě jedinečných předmětů. Získáváš ji za boj, rozkladem výbavy a z truhel bez předmětu. Zlato ji nenahrazuje.')+'</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='journal'){
-  body='<h2 id="dialog-title">Kronika Sira Šmika</h2><p>Výpravy se mění. Někteří lidé si tě pamatují.</p><ol class="journal">'+s.journal.slice().reverse().map(x=>'<li>'+esc(x)+'</li>').join('')+'</ol>'+btn('Zavřít','close','','text-button wide');
+  body='<h2 id="dialog-title">Kronika</h2><p>Výpravy se mění. Někteří lidé si tě pamatují.</p><ol class="journal">'+s.journal.slice().reverse().map(x=>'<li>'+esc(x.replace(/(?:Sir )?Šmik/g,()=>s.heroName))+'</li>').join('')+'</ol>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='help'){
   const def=growthDefs.find(x=>x[0]===dialog.id),links={might:['damageMin','damageMax'],grit:['maxHp','armor'],agility:['crit','evasion'],intelligence:['xpBonus','shieldCap'],luck:['luck','gold']}[dialog.id];body='<h2 id="dialog-title">'+def[2]+'</h2><p>'+def[3]+'</p><p>Rozdělené body: '+s.growth[dialog.id]+'. '+(dialog.id==='luck'?'Výbava se přičítá k výslednému štěstí.':'Výbava teď posiluje výsledné parametry přímo, nikoli tento základní atribut.')+'</p>'+links.map(k=>btn(statRows.find(x=>x[0]===k)[1]+' ⓘ '+statFormula(k),'stat-help',k,'secondary wide')).join('')+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='stat'){
@@ -242,7 +245,7 @@ function renderDialog(){
  else{ $('overlay').innerHTML='';if(!wasHidden)previousFocus?.focus?.(); }
 }
 function schedule(){
- const b=game.state.run?.battle;if(!b||b.tactic||paused||tab!=='road'||dialog||game.state.storyEvents.length||game.state.pending.length||game.state.notice||document.hidden)return;
+ const b=game.state.run?.battle;if(!b||b.tactic||paused||tab!=='road'||dialog||game.state.storyEvents.length||game.state.pending.length||game.state.notice||document.hidden||!game.state.heroName)return;
  timer=setTimeout(()=>{
   const idle=b.turn==='enemy'&&((b.style==='hunter'&&!b.charged)||(b.style==='thief'&&b.round>=4));
   motion=idle?'':b.turn;game.step();flushSounds();render();
@@ -252,7 +255,9 @@ function close(){dialog=null;selected=null;donor=null;}
 function dispatch(action,value){
  let result=true;const s=game.state,beforeStats=game.stats();
  audio.configure(s.settings.sound,s.settings.volume);void audio.unlock();
+ if(!s.heroName&&action!=='name-confirm')return;
  switch(action){
+  case 'name-confirm':if(!game.setHeroName(nameDraft)){toast('Zadej 2–24 znaků: písmena, mezery, pomlčku nebo apostrof.');return;}close();break;
   case 'tab':audio.stop();tab=value;if(tab==='character'&&(s.levelNotice||s.points))dialog={type:'level-up'};break;
   case 'character-page':if(['attributes','equipment','effects'].includes(value))characterPage=value;break;
   case 'stat-page':statPage=Math.max(0,Math.min(Math.ceil(statRows.length/6)-1,Number(value)||0));break;
@@ -320,7 +325,7 @@ function dispatch(action,value){
 }
 document.addEventListener('click',e=>{const button=e.target.closest('[data-action]');if(button&&!button.disabled)dispatch(button.dataset.action,button.dataset.value);});
 document.addEventListener('change',e=>{if(e.target.id==='slot-filter'){filter=e.target.value;render();}else if(e.target.id==='audio-volume'){render();sound('tap');}});
-document.addEventListener('input',e=>{if(e.target.id==='audio-volume'){const value=Number(e.target.value);if(!Number.isFinite(value))return;game.state.settings.volume=Math.max(0,Math.min(1,value/100));audio.configure(game.state.settings.sound,game.state.settings.volume);$('audio-value').textContent=Math.round(game.state.settings.volume*100)+' %';save();}});
+document.addEventListener('input',e=>{if(e.target.id==='hero-name'){nameDraft=e.target.value;return;}if(e.target.id==='audio-volume'){const value=Number(e.target.value);if(!Number.isFinite(value))return;game.state.settings.volume=Math.max(0,Math.min(1,value/100));audio.configure(game.state.settings.sound,game.state.settings.volume);$('audio-value').textContent=Math.round(game.state.settings.volume*100)+' %';save();}});
 document.addEventListener('pointerdown',e=>{
  const card=e.target.closest('#swipe-card');if(!card||e.target.closest('button')||!$('overlay').hidden)return;
  pointer={id:e.pointerId,x:e.clientX,y:e.clientY,card};card.setPointerCapture?.(e.pointerId);
@@ -338,6 +343,7 @@ document.addEventListener('pointerup',e=>{
 });
 document.addEventListener('pointercancel',()=>{if(pointer){pointer.card.style.transform='';pointer.card.classList.remove('drag-left','drag-right');}pointer=null;});
 document.addEventListener('keydown',e=>{
+ if(e.key==='Enter'&&e.target.id==='hero-name'){e.preventDefault();dispatch('name-confirm','');return;}
  if(!$('overlay').hidden){
   if(e.key==='Escape'&&dialog){dispatch('close','');return;}
   if(e.key==='Tab'){

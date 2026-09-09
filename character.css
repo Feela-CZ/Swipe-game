@@ -1,4 +1,5 @@
 /* Compact character pages, training dialog and consistent navigation pictograms. */
+.welcome-content{text-align:center}.welcome-content h2{font-size:2rem;color:var(--gold);margin:0}.welcome-content>img{display:block;margin:8px auto;width:auto;height:clamp(100px,24dvh,200px);max-width:100%;object-fit:contain}.welcome-content label{display:block;text-align:left;margin:8px 0;font-size:1rem}.welcome-content input{width:100%;box-sizing:border-box;min-height:48px;padding:10px;border:1px solid var(--gold);border-radius:8px;background:#081f25;color:#f4e3b7;font:1.1rem system-ui}.welcome-content small{display:block;text-align:left;margin:7px 0 12px;color:var(--muted)}
 .nav-icon{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .character-screen{height:100%;min-height:0;display:flex;flex-direction:column;gap:10px}
 .character-screen>.heading{margin:0;flex:none}.character-screen .eyebrow:empty{display:none}

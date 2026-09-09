@@ -1,7 +1,7 @@
 /* Presentation only: no random rolls, no changes to saved game balance. */
 (function(){
 'use strict';
-const people=['Sir Šmik','Krysa s měšcem','Ozbrojený strážný','Lovec s kuší','Bludný strážce','Královský výběrčí','Zakletý jelen','Uvězněný písař','Raněný posel','Kupec s lektvary','Pocestný bez peněz','Zásobovač','Výběrčí mýta','Hlídka s truhlicí','Rodina u cesty','Studna'];
+const people=['Dobrodruh','Krysa s měšcem','Ozbrojený strážný','Lovec s kuší','Bludný strážce','Královský výběrčí','Zakletý jelen','Uvězněný písař','Raněný posel','Kupec s lektvary','Pocestný bez peněz','Zásobovač','Výběrčí mýta','Hlídka s truhlicí','Rodina u cesty','Studna'];
 const props=['Poškozený přechod','Zavalená výstroj','Truhla s mincemi','Místo k odpočinku','Poutnická svatyně','Ochranný kruh','Poplašný zvon','Kořeny kolem truhly','Cechovní zásilka'];
 const person=i=>({sheet:'characters',cell:i,columns:4,label:people[i]});
 const prop=i=>({sheet:'props',cell:i,columns:3,label:props[i]});
