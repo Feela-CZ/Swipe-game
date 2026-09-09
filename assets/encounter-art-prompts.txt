@@ -1,0 +1,24 @@
+Use case: stylized-concept
+Asset type: transparent raster sprite atlas for a dark medieval fantasy browser game.
+Primary request: Generate one NEW square 2048x2048 image with exactly 4 columns and 4 rows of equal 512x512 invisible cells, exactly 16 separate whole-body painted assets. Background must be REAL TRANSPARENT ALPHA, including between figures, not black, white or checkerboard.
+Reference style: the previously viewed characters-v3.webp is a style reference only: richly painted humorous dark medieval fantasy with expressive faces, realistic richly detailed worn cloth, leather and armor, teal shadows and warm golden rim light. The previously viewed sir-smik.webp is hero identity reference only: mischievous small green goblin adventurer, amber eyes, pointed ears, stitched emerald-teal hood and long coat, brown leather boots and belts, bright potion bottles, curved dagger.
+Composition: Each subject centered within its own cell, entire figure including feet/weapons/horns fully contained within the middle 76% of its cell, 12% empty padding on every side. All characters face LEFT in three-quarter side pose except the hero at cell 0 faces RIGHT. Consistent side-view game staging; no panels or portraits. Each asset independent, no shared ground or scenery.
+Exact row-major order (left to right then top to bottom):
+Row 1: cell 0 Sir Smik emerald-hooded dagger adventurer matching reference; cell 1 large rat thief dragging a coin pouch; cell 2 armored goblin guard carrying a spear; cell 3 hooded crossbow hunter.
+Row 2: cell 4 translucent ghost swordsman; cell 5 pompous crowned king holding a mace; cell 6 enchanted antlered stag; cell 7 imprisoned ragged scribe clutching a quill, visible shackles.
+Row 3: cell 8 injured courier with satchel; cell 9 traveling potion merchant; cell 10 tired laborer requesting aid with open hand; cell 11 provisions supplier carrying bandages.
+Row 4: cell 12 toll collector holding palm out and ledger; cell 13 elite armored guard carrying a chest; cell 14 grateful family of TWO adults together as one asset; cell 15 stone well with a ring on its rim, a complete small scene prop.
+Constraints: detailed painted full-body illustrations, NOT icons or pictograms, no grid lines, borders, frames, labels, lettering, watermark, backdrop, card shapes or overlapping cells. Preserve genuine transparency. Exactly 16 cells.
+
+---
+
+Use case: stylized-concept
+Asset type: transparent raster prop and encounter sprite atlas for a dark medieval fantasy browser game.
+Primary request: Generate one NEW square 1536x1536 image with exactly 3 columns and 3 rows of equal 512x512 invisible cells, exactly 9 separate richly painted vignettes. REAL TRANSPARENT ALPHA background including between all props, not black, white or checkerboard.
+Reference style: match previously viewed characters-v3.webp and sir-smik.webp in richly painted humorous dark medieval fantasy, realistic detailed worn materials, teal shadows, warm gold light. These are style references only. These props will be composited over existing regional backgrounds.
+Composition: Each complete vignette centered inside its own cell, contained within the middle 76% of its cell, leaving 12% completely transparent padding on every side. Consistent three-quarter view suitable for a side-view game scene. Detailed volumetric illustrations with readable silhouettes, no humans.
+Exact row-major order (left to right then top to bottom):
+Row 1: cell 0 cracked timber footbridge and jagged stones, a hazard; cell 1 broken enchanted armor trapped beneath rocks, salvage; cell 2 battered treasure chest with loose coins.
+Row 2: cell 3 small campfire beside a bedroll and bandages, rest; cell 4 pilgrim stone shrine with water bowl and scroll; cell 5 rune-inscribed stone protective circle glowing teal, an omen.
+Row 3: cell 6 hanging alarm bell on a small wooden support with rope; cell 7 tangled enchanted roots blocking a path with a trapped chest; cell 8 sealed guild supply crate.
+Constraints: elaborate painted vignettes, NOT icons, symbols, pictograms or glyphs. No grid lines, panels, borders, text labels, lettering, watermark, solid background, large ground patches or overlapping cells. Exactly 9 assets with genuine transparency; only the rune circle may contain ornamental runes.

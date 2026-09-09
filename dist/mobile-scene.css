@@ -1,0 +1,42 @@
+/* Scene-first mobile layout. Atlas cells stay square; the scene crops, never stretches. */
+.topbar .icon-button{width:auto;min-width:54px;font:600 .875rem system-ui;padding:0 10px}
+.context-wallet{display:flex;justify-content:flex-end;gap:8px;margin:6px 0 12px}
+.context-wallet .currency{min-width:84px;min-height:44px;padding:3px 9px}
+.context-wallet .currency .item-art{width:32px;height:32px}
+.road-screen>.heading .eyebrow:empty{display:none}
+.road-screen .expedition-progress{margin:0 0 3px}
+.road-screen .expedition-progress .progress-label{font-size:.8rem;margin-bottom:3px}
+.road-screen>.stage{--scene-height:clamp(170px,30dvh,260px);display:block;flex:0 0 var(--scene-height);height:auto;min-height:0;max-height:none;margin:0;border-radius:12px}
+.road-screen .scene-art{inset:auto;left:0;top:50%;width:100%;height:auto;aspect-ratio:1;transform:translateY(-50%);background-size:300% 200%}
+.road-screen .hero-token{height:85%;width:33%;left:2%;bottom:0}
+.road-screen .hero-token img{object-fit:contain;object-position:bottom;mask-image:linear-gradient(#000 85%,transparent);border-radius:0}
+.road-screen .enemy-portrait{display:block;width:33%;height:auto;aspect-ratio:1;right:6%;top:12%;max-width:145px}
+.road-screen .enemy-meter{left:38%;right:5%;bottom:8px}
+.road-screen .road-copy{flex:1;min-height:0}
+.road-screen .road-copy .panel,.road-screen .road-copy .decision{padding:10px 12px}
+.road-screen .swipe-hint,.road-screen .decision>.eyebrow{display:none}
+.road-screen .decision p{min-height:0}
+.road-screen .action-dock{padding-top:5px}
+.road-screen .action-dock>.wide{margin-top:0}
+.road-screen>.stage .context-wallet{position:absolute;top:4px;right:6px;z-index:3;margin:0}
+.scene-sprite{background-repeat:no-repeat;background-position:var(--sprite-x) var(--sprite-y);filter:drop-shadow(0 5px 5px #0008);aspect-ratio:1;pointer-events:none}
+.sheet-characters{background-image:url('assets/encounter-characters.png');background-size:400% 400%}
+.sheet-props{background-image:url('assets/encounter-props.png');background-size:300% 300%}
+.road-screen .scene-sprite.hero-token,.road-screen .encounter-token{position:absolute;width:min(42%,calc(var(--scene-height)*.73));height:auto;bottom:9%;top:auto;max-height:none;border:0;border-radius:0;box-shadow:none}
+.road-screen .scene-sprite.hero-token{left:1%}
+.road-screen .encounter-token{right:2%}
+.road-screen .fighting .scene-sprite{bottom:22%}
+.road-screen .enemy-meter{left:43%;right:4%;bottom:6px;z-index:2;background:#051c20d9;border-radius:7px;padding:4px 7px}
+.road-screen .enemy-meter strong{font-size:.8rem}
+.road-screen .enemy-meter small{font-size:.75rem}
+.motion-player .hero-token{animation:hero-lunge .42s ease-in-out}
+.motion-enemy .encounter-token{animation:enemy-lunge .42s ease-in-out}
+@keyframes hero-lunge{0%,100%{transform:translateX(0)}45%{transform:translateX(35%)}}
+@keyframes enemy-lunge{0%,100%{transform:translateX(0)}45%{transform:translateX(-35%)}}
+.chest-art>.scene-sprite{position:absolute;width:170px;height:170px;left:calc(50% - 85px);bottom:0;z-index:1}
+.chest-art .scene-art{inset:auto;width:100%;height:auto;aspect-ratio:1;top:50%;transform:translateY(-50%)}
+@media(prefers-reduced-motion:reduce){.motion-player .hero-token,.motion-enemy .encounter-token{animation:none}}
+@media(max-height:650px) and (orientation:portrait){.road-screen>.stage{--scene-height:155px}}
+@media(orientation:landscape) and (max-height:600px){
+ .game-shell{grid-template-rows:auto auto minmax(0,1fr) auto}.topbar{display:flex;padding:0 12px}.topbar h1{font-size:.85rem}.statusbar{display:block;padding:2px 12px}.road-screen{display:grid;grid-template-columns:minmax(150px,.9fr) minmax(230px,1.1fr);grid-template-rows:auto minmax(0,1fr) auto;gap:6px}.road-screen>.heading{grid-column:1/-1}.road-screen>.stage{display:block;grid-column:1;grid-row:2/4;height:100%;min-height:0}.road-screen>.road-copy{grid-column:2;grid-row:2}.road-screen>.action-dock{grid-column:2;grid-row:3}.road-screen>.expedition-progress{display:none}
+}

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 assert.ok(html.includes('<title>Quest Happens · Výpravy Sira Šmika</title>'));
 assert.ok(html.includes('<h1>Quest Happens</h1>'));assert.ok(html.includes('lang="cs"'));
-const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
+const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','scenes.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
 for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
 const handlers={},nodes=new Map(),storage=new Map(),timers=new Map();let seq=0;
@@ -81,3 +81,35 @@ click('chapter');assert.ok(overlay().includes('Král, který zakázal soumrak'))
 assert.ok(css.includes('height:100dvh'));assert.ok(css.includes('env(safe-area-inset-bottom)'));assert.ok(css.includes('orientation:landscape'));
 console.log('Narrative UI and mobile layout structure passed. Real browser geometry and physical-device testing are not covered.');
 click('sound');assert.ok(overlay().includes('Zvuk hry'));assert.ok(overlay().includes('Hlasitost efektů'));for(const cue of ['block','blade','blunt','arrow','shield','heal'])assert.ok(overlay().includes('data-value="'+cue+'"'));handlers.input({target:{id:'audio-volume',value:'25'}});assert.equal(state().settings.volume,.25);click('sound-toggle');assert.ok(state().settings.sound);click('sound-preview','block');click('sound-preview','heal');click('sound-toggle');assert.equal(state().settings.sound,false);click('close');sane();
+
+// Scene-first presentation, deterministic art mapping and contextual currency.
+const sceneCss=await readFile(new URL('../mobile-scene.css',import.meta.url),'utf8');
+for(const asset of ['encounter-characters.png','encounter-props.png'])await access(new URL('../assets/'+asset,import.meta.url));
+assert.ok(html.includes('src="scenes.js"'));assert.ok(html.includes('data-action="menu"'));
+assert.ok(!nodes.get('statusbar').innerHTML.includes('currency'));
+click('tab','inventory');assert.ok(view().includes('currency gold'));assert.ok(view().includes('currency essence'));
+click('shop');assert.ok(overlay().includes('currency gold'));assert.ok(!overlay().includes('currency essence'));
+click('currency','gold');click('close');assert.ok(overlay().includes('Víš, co kupuješ'));click('close');
+const kinds=['clash','hunt','ambush','toll','hazard','salvage','chest','respite','aid','shrine','trade','tracks','omen'];
+const mapped=kinds.map(kind=>ctx.RPGScenes.encounter({kind},{area:0},null));
+assert.equal(new Set(mapped.map(a=>a.sheet+':'+a.cell)).size,kinds.length,'Every generic encounter type has distinct art');
+for(const entry of ctx.RPGData.encounters){const a=ctx.RPGScenes.encounter(entry,{area:entry.area||0},null);assert.ok(a.label);assert.ok(a.cell>=0&&a.cell<a.columns*a.columns);}
+assert.equal(ctx.RPGScenes.encounter({},{area:0},{kind:'spirit'}).cell,4,'A ghost is not a stag');
+assert.equal(ctx.RPGScenes.encounter({},{area:4},{boss:true}).cell,5,'Mountain finale depicts the king, not a stag');
+
+const sceneGame=new ctx.RPG.Game();sceneGame.state.storyEvents=[];sceneGame.start();sceneGame.state.storyEvents=[];
+sceneGame.state.run.rooms=['patrol','scribe','boss'];sceneGame.state.run.index=0;sceneGame.state.notice=null;
+storage.set('ne-ale-zabijim-v3',JSON.stringify(sceneGame.state));vm.runInContext(scripts.at(-1),ctx);click('tab','road');
+assert.ok(!view().includes('location-emblem'));assert.ok(!view().includes('data-action="retreat-confirm"'));
+click('choice','left');assert.equal(state().run.battle.kind,'thief');assert.ok(view().includes('aria-label="Krysa s měšcem"'));
+click('menu');assert.ok(overlay().includes('Ukončit výpravu'));assert.ok(overlay().includes('disabled'));
+assert.equal([...timers.values()].filter(t=>t.ms>0&&t.ms<=1050).length,0,'Menu stops combat timer');
+click('sound');assert.ok(overlay().includes('Zvuk hry'));click('close');assert.ok(overlay().includes('Menu'));click('close');
+function tickCombat(){const task=[...timers.entries()].filter(([,t])=>t.ms>0&&t.ms<=1050).at(-1);assert.ok(task);timers.delete(task[0]);task[1].fn();}
+tickCombat();assert.ok(view().includes('motion-player'));
+if(state().run.battle){tickCombat();assert.ok(view().includes('motion-enemy'));}
+let sceneTurns=0;while(state().run?.battle&&sceneTurns++<30)tickCombat();
+assert.ok(state().notice);assert.ok(view().includes('aria-label="Krysa s měšcem"'),'Outcome keeps defeated foe rather than next scribe');
+assert.ok(!view().includes('NÁSLEDEK TVÉ CESTY'));
+assert.ok(sceneCss.includes('aspect-ratio:1'));assert.ok(sceneCss.includes('prefers-reduced-motion'));
+console.log('Scene regression passed: 13 distinct archetypes, all encounter mappings, correct ghost/king, contextual wallet/back, menu pause/resume, actor-specific lunges and outcome continuity.');

@@ -209,6 +209,7 @@ class Game {
  choose(side){
   const s=this.state,r=s.run;if(!r||r.battle||s.notice||s.pending.length||!['left','right'].includes(side))return false;
   const id=this.room().id,left=side==='left',f=r.flags;
+  r.lastScene=id;r.lastFoe=null;
   s.metrics.choices++;r.choices.push(id+':'+side);
   if(D.encounterById[id])return this.encounter(D.encounterById[id],left);
   switch(id){
@@ -296,6 +297,7 @@ class Game {
   const hp=Math.round((boss?(r.routeVersion===1?120:100):elite?48:36)*scale*pressure*depth*(r.flags.hunted?1.10:1)*(boss&&!r.flags.silent?1.1:1));
   const damage=Math.round(((r.routeVersion===1?(boss?16:15):(boss?7:4))+level*1.35)*pressure*depth);
   r.battle={...def,kind,boss,elite,hp,maxHp:hp,damage,turn:'player',round:0,log:[],tactic:null,used:[],charged:false,escaped:false,opening,mechanic:boss?['bell','roots','shell','tribute','avalanche'][r.area]:null,shellBroken:false};
+  r.lastFoe={kind,boss};
    if(boss){if(r.flags.silent)this.log(r.area===0?'Poplašný zvon je vyřazený. Výběrčí nedostane posilu.':r.area===1?'Kořeny jsou přetnuté: jelen se nebude léčit. Pěšina ti dovolí ustoupit.':'Připravená zkratka ti dává prostor k ústupu.','story');else this.log('Boss se připravil na tvůj příchod: má o 10 % více životů.','story');}
   if(opening)this.log(opening,'story');
  }
@@ -380,7 +382,7 @@ class Game {
   const gold=this.gold(b.escaped?(long?2:4):(b.boss?42:long?4:12)+(long&&!b.boss?Math.ceil(p.level/2):p.level*3)+r.challenge*(long?3:8));
   const xp=(b.boss?40:long?5:18)+(long&&!b.boss?Math.ceil(p.level/2):p.level*3)+r.challenge*(long?3:6);this.xp(xp);r.xp+=Math.round(xp*(1+this.stats().xpBonus/100));
   const essence=b.boss?8:long?1:2;s.essence+=essence;s.hp=Math.min(this.stats().maxHp,s.hp+(long?0:4));
-  const logs=copy(b.log),boss=b.boss,escaped=b.escaped;r.battle=null;
+  const logs=copy(b.log),boss=b.boss,escaped=b.escaped;r.lastFoe={kind:b.kind,boss,carriesChest:!!b.carriesChest};r.battle=null;
   if(boss){
    const record=s.records[r.area];record.clears++;record.highest=Math.max(record.highest,r.challenge);record.marks+=2;
    s.unlocked=Math.max(s.unlocked,Math.min(5,r.area+2));s.metrics.bosses++;
