@@ -162,15 +162,33 @@ class Game {
  start(area=this.state.selectedArea,challenge=this.state.selectedChallenge){
   const s=this.state;if(s.run||s.pending.length||area>=s.unlocked||area<0||!D.areas[area])return false;
   challenge=clamp(integer(challenge),0,s.records[area].highest+1);s.notice=null;s.lastReport=null;
-  const rooms=area===0?['gate','scribe',this.pick(['well','wounded','merchant']),'bell','patrol','camp','boss']:
-   ['trail','wounded',this.pick(['well','merchant','cache']),'fork','patrol','camp','boss'];
-  s.run={area,challenge,rooms,index:0,replay:s.records[area].clears>0,flags:{},battle:null,gold:0,xp:0,choices:[],shield:0,riposte:false,revenge:false};
+  const rooms=this.makeRoute(area),pressure=rooms.map(()=>.85+this.random()*.4);
+  s.run={routeVersion:1,area,challenge,rooms,pressure,index:0,replay:s.records[area].clears>0,flags:{},battle:null,gold:0,xp:0,choices:[],shield:0,riposte:false,revenge:false};
   s.metrics.runs++;this.jot('Výprava: '+D.areas[area].name+' · hrozba '+(challenge+1));return true;
  }
+ makeRoute(area){
+  const n=D.expeditionLengths[area],rooms=Array(n).fill(null);
+  const place=(id,lo,hi)=>{let at=lo+Math.floor(this.random()*(hi-lo+1));while(rooms[at])at=at===hi?lo:at+1;rooms[at]=id;return at;};
+  rooms[0]=area===0?'gate':'trail';rooms[n-2]='camp';rooms[n-1]='boss';
+  if(area===0)place('scribe',Math.floor(n*.12),Math.floor(n*.28));
+  place(area===0?'bell':'fork',Math.floor(n*.66),Math.floor(n*.78));
+  place('wounded',Math.floor(n*.3),Math.floor(n*.46));
+  place('well',Math.floor(n*.47),Math.floor(n*.61));
+  const supply=place('supplies',n-7,n-4);
+  const pool=D.encounters.filter(x=>x.area===undefined||x.area===area);let deck=[];
+  for(let i=1;i<n-2;i++)if(!rooms[i]){
+   let options=deck.filter(x=>(i<supply||x.kind!=='aid')&&!rooms.slice(Math.max(0,i-12),i).includes(x.id)&&x.kind!==D.encounterById[rooms[i-1]]?.kind);
+   if(!options.length){deck=[...pool];options=deck.filter(x=>(i<supply||x.kind!=='aid')&&!rooms.slice(Math.max(0,i-12),i).includes(x.id)&&x.kind!==D.encounterById[rooms[i-1]]?.kind);}
+   const entry=this.pick(options);rooms[i]=entry.id;deck=deck.filter(x=>x!==entry);
+  }
+  return rooms;
+ }
  describe(id){
+  if(D.encounterById[id])return D.encounterById[id];
   const r=this.state.run,f=r.flags,area=D.areas[r.area];
   const places=[['boční chodbě','na schodech','Přede dveřmi pracovny slyšíš šustění účtů. Výběrčí je uvnitř.'],['houští mezi stromy','na kraji mýtiny','Za houštím zahlédneš jelena. Kolem jeho nohou pulzují kořeny.'],['opuštěné štole','u důlní výztuže','Z poslední štoly se ozývají údery krumpáče. Předák ještě neskončil.'],['služební chodbě','před trůnním sálem','Král diktuje další pracovní vyhlášku. Za dveřmi se dá ještě nabrat dech.'],['skalní rozsedlině','pod skalním převisem','U svatyně čeká král. Záblesky jeho koruny otřásají skalní stěnou.']][r.area];
   const defs={
+   supplies:['supplies','Zásobovací stanoviště',f.favors?'Zásobovač tě poznává podle vzkazu od lidí, kterým jsi cestou pomohl. Odkládá pro tebe balík obvazů.':'U zásobovacího stanoviště zbývá několik obvazů. Zásobovač nabízí ošetření za deset zlatých.',['Přijmout ošetření','Pokračovat bez zastávky'],['','']],
    gate:['gate','Za branou','Strážný chce vstupné. Na směnovém lístku má přeškrtnuté tři dny.',['Zaplatit 8 zlata','Trvat na průchodu'],['Mince nebo rozhovor?','Ruka mu sklouzla ke zbrani.']],
    scribe:['scribe','Písař za mřížemi',this.state.flags.scribeFriend?'„Zase vy? Tentokrát mě zavřeli za správné datum.“ Písař se už natahuje po klíči.':'„Zvon svolá všechny stráže,“ šeptá písař. Klíč od cely i trezoru visí na stejném kroužku.',['Osvobodit písaře','Vzít klíč a odejít'],['Zná chodby i jejich obyvatele.','Za mřížemi zůstane ticho.']],
    well:['well','Prsten u studny','Na obrubě leží prsten s vyrytým jménem. Stejné jméno a adresu sis přečetl na oznámení o ztrátě. Rodina táboří nedaleko.',['Nechat si prsten','Vrátit jej rodině'],['Vejde se do kapsy.','Majitele už dokážeš najít.']],
@@ -192,7 +210,12 @@ class Game {
   const s=this.state,r=s.run;if(!r||r.battle||s.notice||s.pending.length||!['left','right'].includes(side))return false;
   const id=this.room().id,left=side==='left',f=r.flags;
   s.metrics.choices++;r.choices.push(id+':'+side);
+  if(D.encounterById[id])return this.encounter(D.encounterById[id],left);
   switch(id){
+   case 'supplies':{
+    if(left&&(f.favors||s.gold>=10)){if(!f.favors)s.gold-=10;const before=s.hp;this.heal(16+Math.min(4,f.favors||0)*7);this.advance('Obvazy a dobré slovo','Obnoveno '+(s.hp-before)+' životů. '+(f.favors?'Lidé, kterým jsi pomohl, za tebe zaplatili.':'Ošetření stálo 10 zlata.'));}
+    else this.advance('Cesta pokračuje',left?'Na ošetření nemáš dost zlata. Zásobovač ti alespoň ukázal další průchod.':'Obvazy zůstaly pro další poutníky.');break;
+   }
    case 'gate':
     if(left&&s.gold>=8){s.gold-=8;this.advance('Vstupné zaplaceno','Strážný schoval mince. „Potvrzení vám vydá poslední patro.“');}
     else this.fight('guard',false,left?'Na vstupné ti chybí mince. Strážný navrhuje praktickou zkoušku.':'Strážný nesouhlasí. Bude to muset vysvětlit zbraní.');break;
@@ -231,14 +254,47 @@ class Game {
   }
   return true;
  }
+ encounter(event,left){
+  const s=this.state,r=s.run,f=r.flags,a=this.stats(),roll=()=>this.random(),before=s.hp;
+  const finish=(text)=>{this.advance(event.title,text);return true;};
+  const wound=n=>{this.hurt(n);return before-s.hp;};
+  switch(event.kind){
+   case 'clash':
+    if(!left&&roll()<Math.min(.8,.35+a.evasion/100)){return finish('Proklouzl jsi kolem hlídky. Strážný si tvého průchodu nevšiml.');}
+    this.fight('guard',false,left?'Postavil ses hlídce do cesty.':'Strážný si tě všiml při obcházení. Musíš se bránit.');return true;
+   case 'hunt':
+    if(left){this.fight('thief');return true;}return finish('Zloděj zmizel i s kořistí. Uchoval sis síly pro další cestu.');
+   case 'ambush':
+    this.fight('hunter');if(!left){r.battle.damage=Math.max(1,r.battle.damage-2);r.battle.hp=Math.round(r.battle.hp*1.15);r.battle.maxHp=r.battle.hp;this.log('Kryt snižuje sílu výstřelů o 2. Lovec měl čas se připravit a má o 15 % více životů.','story');}return true;
+   case 'toll':
+    if(left&&s.gold>=9){s.gold-=9;return finish('Zaplatil jsi 9 zlata. Hlídka tě pustila bez boje.');}this.fight('guard',false,left?'Na poplatek nemáš. Hlídka tasí zbraně.':'Odmítl jsi zaplatit. Strážný tasí zbraň.');return true;
+   case 'hazard':{
+    const cost=left?3:roll()<Math.min(.85,.42+a.evasion/100)?0:10+Math.floor(roll()*9);
+    return finish(cost?'Překážka je za tebou. Ztratil jsi '+wound(cost)+' životů.':'Zkratka vyšla bez zranění.');
+   }
+   case 'salvage':if(left){const cost=wound(6);s.essence+=2;return finish('Vyprostil jsi 2 esence. Ostré hrany tě stály '+cost+' životů.');}return finish('Materiál zůstal na místě. Pokračuješ bez zranění.');
+   case 'chest':
+    if(left){const cost=wound(4);if(roll()<.45){this.chest(0,'Nález: '+event.title);return finish('Za cenu '+cost+' životů jsi uvolnil schránku. Teď ji můžeš otevřít.');}const gold=this.gold(5);return finish('Schránka byla vybraná. Zbylo '+gold+' zlata; ostrý okraj tě stál '+cost+' životů.');}
+    return finish('Sebral jsi '+this.gold(4)+' zlata. Schránka zůstala zavřená.');
+   case 'respite':if(left){this.heal(10+Math.floor(roll()*9));this.cue('potion');return finish('Klid a obvazy obnovily '+(s.hp-before)+' životů.');}s.essence++;return finish('Při hledání jsi našel 1 esenci. Čas na ošetření už nezbyl.');
+   case 'aid':
+    if(left&&s.gold>=8){s.gold-=8;f.favors=(f.favors||0)+1;return finish('Předal jsi 8 zlata. Zpráva o tvé pomoci putuje k zásobovacímu stanovišti dál na cestě.');}return finish(left?'Na pomoc ti chybí mince. Rozloučili jste se bez výměny.':'Rozloučil ses a pokračuješ. Zásobovači o tobě žádnou zprávu nedostanou.');
+   case 'shrine':if(left){this.heal(8);return finish('Čistá voda a obvaz obnovily '+(s.hp-before)+' životů.');}this.xp(4);r.xp+=Math.round(4*(1+a.xpBonus/100));return finish('Zápis tě naučil něco o zdejších nástrahách. Získal jsi '+Math.round(4*(1+a.xpBonus/100))+' XP.');
+   case 'trade':if(left&&s.gold>=18){s.gold-=18;s.potions++;return finish('Za 18 zlata přibyl jeden lektvar do opasku.');}f.informed=true;return finish((left?'Na lektvar nemáš, ale rada je zdarma. ':'')+'Znáš místo k ústupu: obranná volba proti těžkým útokům bosse bude zcela bezpečná.');
+   case 'tracks':if(left){this.fight('guard',true);r.battle.carriesChest=true;return true;}return finish('Ozbrojenec odnesl náklad. Ty pokračuješ za cílem výpravy.');
+   case 'omen':if(left&&s.gold>=6){s.gold-=6;r.shield=Math.min(a.shieldCap,r.shield+12);return finish('Šest zlatých obnovilo ochranu. Tvůj dočasný štít má nyní '+r.shield+' bodů a pohltí příští poškození.');}if(left)return finish('Nemáš šest zlatých. Ochrana zůstala neaktivní.');f.hunted=true;return finish('Vzal jsi '+this.gold(7)+' zlata. Pečeť zhasla a vydala poplašný tón: další nepřátelé mají o 10 % více životů.');
+  }
+  return false;
+ }
  hurt(n){this.state.hp=Math.max(1,this.state.hp-n);}
  heal(n,overflow=false){const s=this.state,a=this.stats(),extra=Math.max(0,s.hp+n-a.maxHp);s.hp=Math.min(a.maxHp,s.hp+n);if(overflow&&s.run)s.run.shield=Math.min(a.shieldCap,s.run.shield+extra);}
  potion(){const s=this.state;if(!s.run||s.potions<1||s.hp>=this.stats().maxHp)return false;s.potions--;const n=Math.round(this.stats().maxHp*.40);this.heal(n);this.cue('potion');if(s.run.battle)this.log('Elixír obnovil '+n+' životů.','heal',false);return true;}
  fight(kind,elite=false,opening=''){
   const s=this.state,r=s.run,p=D.areas[r.area],level=p.level+r.challenge*2,boss=kind==='boss',def=boss?{name:p.boss,art:p.bossArt,style:'boss',hint:p.hint}:D.foeKinds[kind];
   const scale=1+level*.12;
-  const hp=Math.round((boss?100:elite?48:36)*scale*(r.flags.hunted?1.10:1)*(boss&&!r.flags.silent?1.1:1));
-  const damage=Math.round((boss?7:4)+level*1.35);
+  const pressure=r.routeVersion===1?(r.pressure?.[r.index]??1):1,depth=r.routeVersion===1?1+.15*r.index/r.rooms.length:1;
+  const hp=Math.round((boss?(r.routeVersion===1?120:100):elite?48:36)*scale*pressure*depth*(r.flags.hunted?1.10:1)*(boss&&!r.flags.silent?1.1:1));
+  const damage=Math.round(((r.routeVersion===1?(boss?16:15):(boss?7:4))+level*1.35)*pressure*depth);
   r.battle={...def,kind,boss,elite,hp,maxHp:hp,damage,turn:'player',round:0,log:[],tactic:null,used:[],charged:false,escaped:false,opening,mechanic:boss?['bell','roots','shell','tribute','avalanche'][r.area]:null,shellBroken:false};
    if(boss){if(r.flags.silent)this.log(r.area===0?'Poplašný zvon je vyřazený. Výběrčí nedostane posilu.':r.area===1?'Kořeny jsou přetnuté: jelen se nebude léčit. Pěšina ti dovolí ustoupit.':'Připravená zkratka ti dává prostor k ústupu.','story');else this.log('Boss se připravil na tvůj příchod: má o 10 % více životů.','story');}
   if(opening)this.log(opening,'story');
@@ -320,9 +376,10 @@ class Game {
  win(){
   const s=this.state,r=s.run,b=r.battle,p=D.areas[r.area],first=!s.records[r.area].clears;
   this.cue(b.escaped?'dodge':b.boss?'victory':'coins');
-  const gold=this.gold(b.escaped?4:(b.boss?42:12)+p.level*3+r.challenge*8);
-  const xp=(b.boss?40:18)+p.level*3+r.challenge*6;this.xp(xp);r.xp+=Math.round(xp*(1+this.stats().xpBonus/100));
-  s.essence+=b.boss?8:2;s.hp=Math.min(this.stats().maxHp,s.hp+4);
+  const long=r.routeVersion===1;
+  const gold=this.gold(b.escaped?(long?2:4):(b.boss?42:long?4:12)+(long&&!b.boss?Math.ceil(p.level/2):p.level*3)+r.challenge*(long?3:8));
+  const xp=(b.boss?40:long?5:18)+(long&&!b.boss?Math.ceil(p.level/2):p.level*3)+r.challenge*(long?3:6);this.xp(xp);r.xp+=Math.round(xp*(1+this.stats().xpBonus/100));
+  const essence=b.boss?8:long?1:2;s.essence+=essence;s.hp=Math.min(this.stats().maxHp,s.hp+(long?0:4));
   const logs=copy(b.log),boss=b.boss,escaped=b.escaped;r.battle=null;
   if(boss){
    const record=s.records[r.area];record.clears++;record.highest=Math.max(record.highest,r.challenge);record.marks+=2;
@@ -335,8 +392,8 @@ class Game {
   }else{
    r.index++;
    if(!escaped&&this.random()<this.dropChance(b.elite))s.pending.push({type:'item',item:this.drop(b.elite?'chest':'enemy'),note:'Vzácný nález přímo z protivníka.'});
-   else if(!escaped&&this.random()<.12)this.chest(0,'Truhla po hlídce');
-   this.note(escaped?'Krysa unikla':'Souboj vyhraný','+'+gold+' zlata · +'+Math.round(xp*(1+this.stats().xpBonus/100))+' XP · +2 esence. '+(escaped?'Musíš ji porazit nejpozději čtvrtým útokem; pomůže vyšší poškození.':'Můžeš prohlédnout výbavu a pokračovat.'));
+   else if(!escaped&&(b.carriesChest||this.random()<(long?.035:.12)))this.chest(0,'Truhla po hlídce');
+   this.note(escaped?'Krysa unikla':'Souboj vyhraný','+'+gold+' zlata · +'+Math.round(xp*(1+this.stats().xpBonus/100))+' XP · +'+essence+' esence. '+(escaped?'Musíš ji porazit nejpozději čtvrtým útokem; pomůže vyšší poškození.':'Můžeš prohlédnout výbavu a pokračovat.'));
    s.notice.logs=logs;
   }
  }
@@ -407,8 +464,8 @@ class Game {
   const area=this.state.selectedArea,p=D.areas[area],ilvl=p.level+Math.max(0,this.state.records[area].highest)*2;
   return D.itemKinds.filter(d=>p.focus.includes(d.slot)).slice(0,4).map((d,i)=>({kind:d.id,rarity:i===3?'rare':'uncommon',ilvl,price:45+ilvl*15+i*15}));
  }
- buy(index){const s=this.state,row=this.shopList()[index];if(!row||s.gold<row.price||s.pending.length||s.run?.battle)return false;s.gold-=row.price;s.pending.push({type:'item',item:this.item(row.kind,row.rarity,row.ilvl,[['damage',3+row.ilvl]]),note:'Koupený předmět. Zobrazená a zaplacená cena jsou stejné.'});return true;}
- buyPotion(){const s=this.state;if(s.gold<18)return false;s.gold-=18;s.potions++;return true;}
+ buy(index){const s=this.state,row=this.shopList()[index];if(!row||s.gold<row.price||s.pending.length||s.run)return false;s.gold-=row.price;s.pending.push({type:'item',item:this.item(row.kind,row.rarity,row.ilvl,[['damage',3+row.ilvl]]),note:'Koupený předmět. Zobrazená a zaplacená cena jsou stejné.'});return true;}
+ buyPotion(){const s=this.state;if(s.run||s.gold<18)return false;s.gold-=18;s.potions++;return true;}
  rest(){const s=this.state;if(s.run||s.hp>=this.stats().maxHp)return false;s.hp=this.stats().maxHp;return true;}
 }
 globalThis.RPG={Game,clamp};

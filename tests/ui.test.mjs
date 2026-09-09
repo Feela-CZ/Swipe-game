@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-const scripts=await Promise.all(['data.js','story.js','engine.js','audio.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
+const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
 for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
 const handlers={},nodes=new Map(),storage=new Map(),timers=new Map();let seq=0;
@@ -16,6 +16,9 @@ const window={addEventListener(){}};
 const ctx=vm.createContext({console,document,window,localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,v)},
  setTimeout(fn,ms){const id=++seq;timers.set(id,{fn,ms});return id},clearTimeout(id){timers.delete(id)}});
 for(const source of scripts)vm.runInContext(source,ctx);
+// UI journey uses a durable character; starter difficulty is measured separately.
+const uiHero=new ctx.RPG.Game();uiHero.state.growth.might=12;uiHero.state.growth.grit=12;uiHero.rest();
+storage.set('ne-ale-zabijim-v3',JSON.stringify(uiHero.state));vm.runInContext(scripts.at(-1),ctx);
 const view=()=>nodes.get('view').innerHTML,overlay=()=>nodes.get('overlay').innerHTML;
 const state=()=>JSON.parse(storage.get('ne-ale-zabijim-v3'));
 const click=(action,value='')=>handlers.click({target:{closest(){return {dataset:{action,value:String(value)},disabled:false}}}});
@@ -30,15 +33,15 @@ click('tab','inventory');click('shop');assert.ok(overlay().includes('Víš, co k
 click('buy-potion');assert.equal(state().potions,4);assert.equal(state().gold,17);click('close');
 click('tab','map');click('start');assert.ok(state().run);assert.ok(view().includes('Za branou'));sane();
 click('choice','left');assert.ok(view().includes('Vstupné zaplaceno'));click('continue');
-assert.ok(view().includes('Písař za mřížemi'));click('choice','left');click('continue');sane();
+assert.ok(state().run.rooms.indexOf('scribe')>1);assert.ok(view().includes('/ 55'));sane();
 click('tab','map');assert.ok(view().includes('Výprava čeká'));
 const savedIndex=state().run.index;click('start');assert.equal(state().run.index,savedIndex);
 click('tab','road');
 let steps=0;
-while(state().run&&steps++<400){
+while(state().run&&steps++<4000){
  const s=state();
  if(s.pending.length){
-  if(s.pending[0].type==='chest')click('chest');else click('loot','take');
+  if(s.pending[0].type==='chest')click('chest');else click('loot',s.inventory.length<s.capacity?'take':'sell');
  }else if(s.notice)click('continue');
  else if(s.run.battle){
   if(s.run.battle.tactic)click('choice','left');
@@ -49,7 +52,7 @@ while(state().run&&steps++<400){
  }else click('choice',s.run.rooms[s.run.index]==='boss'?'right':'left');
  sane();
 }
-assert.ok(steps<400);assert.ok(state().lastReport?.win);assert.equal(state().pending[0].type,'item');
+assert.ok(steps<4000);assert.ok(state().lastReport?.win);assert.equal(state().pending[0].type,'item');
 assert.ok(overlay().includes('NOVÝ NÁLEZ'));click('loot','take');click('tab','inventory');sane();
 dismissStories();
 const item=state().inventory[0];click('item',item.id);assert.ok(overlay().includes('Detail předmětu'));click('close');

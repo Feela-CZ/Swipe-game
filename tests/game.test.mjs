@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const ctx=vm.createContext({console});
-for(const file of ['data.js','story.js','engine.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),ctx);
+for(const file of ['data.js','encounters.js','story.js','engine.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),ctx);
 const {Game}=ctx.RPG,D=ctx.RPGData;
 const seedRng=start=>{let n=start>>>0;return()=>{n^=n<<13;n^=n>>>17;n^=n<<5;return(n>>>0)/4294967296}};
 const fresh=(seed=123)=>new Game(null,seedRng(seed));
@@ -16,14 +16,14 @@ function resolvePending(g,equip=false){
   if(p.previewOnly){g.state.pending.shift();continue;}
   if(p.type==='chest'){g.openChest();continue;}
   const d=D.itemById[p.item.kind],old=g.state.equipped[d.slot];
-  if(equip&&(!old||g.basePower(p.item)>g.basePower(old)))g.loot('equip');
+  if(equip&&(!old||g.basePower(p.item)>g.basePower(old))&&(!old||g.state.inventory.length<g.state.capacity))g.loot('equip');
   else g.loot(g.state.inventory.length<g.state.capacity?'take':'sell');
  }
  g.state.notice=null;
 }
 function complete(g,{choices={},tactic='left',equip=false,spend=false}={}){
  let actions=0,tactics=0;
- while(g.state.run&&actions++<700){
+ while(g.state.run&&actions++<4000){
   resolvePending(g,equip);
   if(spend&&!g.state.run.battle)while(g.state.points)g.spend('might');
   const b=g.state.run.battle;
@@ -32,7 +32,7 @@ function complete(g,{choices={},tactic='left',equip=false,spend=false}={}){
   assert.ok(Number.isFinite(g.state.hp));
   assert.ok(g.state.gold>=0&&g.state.essence>=0);
  }
- assert.ok(actions<700,'Expedition must terminate');
+ assert.ok(actions<4000,'Expedition must terminate');
  resolvePending(g,equip);
  return {win:g.state.lastReport?.win,actions,tactics};
 }
@@ -202,11 +202,5 @@ test('retreat and defeat provide feedback without awarding story progress',()=>{
 test('all 48 item kinds have unique atlas cells',()=>{
  assert.equal(new Set(Object.values(D.itemArt)).size,48);for(const d of D.itemKinds)assert.ok(Number.isInteger(D.itemArt[d.id]));
 });
-let victories=0,totalActions=0,totalTactics=0;
-for(let n=1;n<=300;n++){
- const g=fresh(n*7919);g.start(0);const result=complete(g,{equip:true,spend:true});
- victories+=result.win?1:0;totalActions+=result.actions;totalTactics+=result.tactics;
-}
-console.log('Actual engine first-tower simulation: '+victories+'/300 victories; average '+(totalActions/300).toFixed(1)+' actions, '+(totalTactics/300).toFixed(1)+' tactical decisions. Policy: help/prepare, auto-equip stronger loot, train strength; no purchased gear.');
-assert.ok(victories>=225,'First adventure should welcome new players using sensible choices');
+// Difficulty calibration lives in expedition.test.mjs with explicit player policies.
 console.log(passed+' domain regression tests passed.');

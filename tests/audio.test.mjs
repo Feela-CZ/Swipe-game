@@ -2,7 +2,7 @@ import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const scope=vm.createContext({console});
-for(const file of ['data.js','story.js','engine.js','audio.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),scope);
+for(const file of ['data.js','encounters.js','story.js','engine.js','audio.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),scope);
 const {synth,names,Player,weaponCue,RATE}=scope.RPGSound;
 const fingerprints=new Set();let bytes=0;
 for(const name of names){
