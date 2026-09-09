@@ -2,9 +2,9 @@
 (function(){
 'use strict';
 const RATE=22050,TAU=Math.PI*2;
-const names=['tap','page','blade','blunt','arrow','magic','hurt','block','dodge','critical','potion','coins','equip','chest','forge','salvage','loot','rare','victory','defeat','warning','level','shield','thorns'];
+const names=['tap','page','blade','blunt','arrow','magic','hurt','block','dodge','critical','potion','coins','equip','chest','forge','salvage','loot','rare','victory','defeat','warning','level','shield','thorns','heal'];
 function synth(name){
- const duration=({rare:1.1,victory:1.2,defeat:1,level:1,forge:.85,magic:.65,chest:.6,potion:.65,coins:.65,warning:.65})[name]||.42;
+ const duration=({block:.62,blade:.48,blunt:.45,critical:.45,heal:.55,rare:1.1,victory:1.2,defeat:1,level:1,forge:.85,magic:.65,chest:.6,potion:.65,coins:.65,warning:.65})[name]||.42;
  const data=new Float32Array(Math.ceil(duration*RATE));let seed=names.indexOf(name)+917;
  const rand=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return(seed>>>0)/4294967296*2-1;};
  function tone(f,to,start,length,amp,decay=length/3,rich=0){
@@ -21,24 +21,34 @@ function synth(name){
   }
  }
  const metal=(start,f=670,amp=.16)=>{[1,1.47,2.09,2.71].forEach((m,i)=>tone(f*m,f*m*.998,start,.34,amp/(i+1),.12-i*.02));noise(start,.045,.2,.7);};
- const thud=(start=0,amp=.5)=>{tone(180,48,start,.22,amp,.055,.22);noise(start,.14,.5,.07);};
+ // Damped, inharmonic plate modes: low-mid body remains audible on phone speakers.
+ // The sharp contact precedes the resonance, unlike the old soft bell-like tones.
+ function plate(start=0,amp=1,scale=1,decay=1){
+  const modes=[[237,.25,.14],[391,.30,.18],[617,.24,.13],[943,.18,.10],[1433,.13,.08],[2099,.11,.055],[2917,.07,.037],[3881,.045,.025]];
+  for(const [freq,gain,tail] of modes){const length=Math.min(.54,tail*4*decay);for(let i=0;i<length*RATE;i++){
+   const at=Math.floor(start*RATE)+i;if(at>=data.length)break;const t=i/RATE;
+   data[at]+=amp*gain*Math.min(1,t/.0007)*Math.exp(-t/(tail*decay))*Math.sin(TAU*freq*scale*t);
+  }}
+  noise(start,.026,amp*.9,.82);noise(start+.016,.085,amp*.28,.38);
+ }
+ const thud=(start=0,amp=.5)=>{tone(112,100,start,.16,amp,.033,.1);tone(247,229,start,.10,amp*.38,.021);noise(start,.09,amp*.9,.25);};
  const chime=(notes,start=0,step=.09,amp=.15)=>notes.forEach((f,i)=>{tone(f,f,start+i*step,.44,amp,.15,.1);tone(f*2.003,f*2,start+i*step,.3,amp*.2,.08);});
  switch(name){
   case 'tap':tone(920,280,0,.07,.18,.012);noise(0,.045,.2,.12);break;
   case 'page':noise(0,.20,.48,.28,true);noise(.1,.19,.25,.12,true);break;
-  case 'blade':noise(0,.13,.8,.4,true);metal(.085,810,.15);thud(.095,.3);break;
-  case 'blunt':noise(0,.1,.55,.18,true);thud(.055,.7);tone(320,120,.06,.18,.18,.03);break;
+  case 'blade':noise(0,.07,.65,.38,true);noise(.045,.028,.75,.8);thud(.05,.46);plate(.05,.35,1.25,.38);break;
+  case 'blunt':noise(0,.065,.45,.18,true);thud(.045,.8);noise(.048,.035,.65,.55);tone(370,355,.05,.12,.21,.027);break;
   case 'arrow':tone(370,95,0,.13,.4,.025,.5);noise(.035,.19,.65,.45,true);thud(.19,.22);break;
   case 'magic':noise(0,.37,.6,.15,true);tone(190,1100,0,.38,.25,.19);chime([660,990,1320],.20,.045,.13);break;
-  case 'hurt':thud(0,.65);noise(.01,.2,.6,.14);break;
-  case 'block':metal(0,470,.29);metal(.025,910,.08);thud(0,.18);break;
+  case 'hurt':thud(0,.65);noise(.002,.11,.45,.3);break;
+  case 'block':plate(.003,.95);thud(.004,.42);noise(.034,.11,.20,.45);break;
   case 'dodge':noise(0,.19,.85,.4,true);noise(.09,.24,.55,.12,true);break;
-  case 'critical':thud(0,.55);metal(.01,1250,.14);noise(.01,.15,.7,.5);break;
+  case 'critical':thud(0,.65);noise(.002,.036,.8,.65);tone(330,315,.008,.14,.18,.035);break;
   case 'potion':tone(550,190,0,.065,.27,.02);[0,.07,.15,.24,.34].forEach((t,i)=>tone(180+i*53,510+i*110,t+.08,.14,.2,.055));chime([740,990],.39,.07,.09);break;
-  case 'coins':[720,1030,1380,940,1650].forEach((f,i)=>metal(i*.065,f,.08));break;
+  case 'coins':[2180,2940,2560].forEach((f,i)=>{tone(f,f,i*.047,.13,.085,.025);noise(i*.047,.02,.12,.65);});break;
   case 'equip':noise(0,.15,.4,.12,true);metal(.12,490,.12);break;
   case 'chest':noise(0,.4,.55,.04,true);tone(110,175,.03,.28,.24,.12,.35);thud(.3,.23);metal(.34,650,.1);break;
-  case 'forge':metal(0,430,.24);thud(0,.25);metal(.24,570,.20);chime([880,1100,1320],.43,.07,.12);break;
+  case 'forge':plate(0,.72,1.3,.7);thud(0,.3);plate(.25,.65,1.3,.7);chime([880,1100,1320],.48,.07,.09);break;
   case 'salvage':noise(0,.34,.65,.5,true);chime([1700,1100,720],.06,.075,.1);break;
   case 'loot':chime([660,880],0,.09,.2);break;
   case 'rare':noise(0,.5,.4,.1,true);chime([440,660,880,1100,1320],.08,.1,.2);break;
@@ -46,7 +56,8 @@ function synth(name){
   case 'defeat':chime([330,277,220,165],0,.14,.15);tone(82,65,.3,.65,.24,.24);break;
   case 'warning':thud(0,.32);thud(.27,.35);tone(110,100,0,.58,.18,.3);break;
   case 'level':chime([523,659,784,1047],0,.13,.19);break;
-  case 'shield':metal(0,1200,.09);tone(330,440,0,.34,.25,.14);break;
+  case 'shield':noise(0,.18,.42,.09,true);tone(180,165,0,.23,.22,.08);tone(540,500,.02,.27,.13,.11);break;
+  case 'heal':chime([523,659],.015,.09,.085);noise(0,.3,.18,.06,true);break;
   case 'thorns':noise(0,.13,.65,.6);tone(620,130,0,.19,.25,.04);break;
  }
  // Gentle saturation, DC removal and short edge fades prevent clicks/clipping.
@@ -60,6 +71,16 @@ function weaponCue(kind){
  if(['wand','staff','lute'].includes(kind))return 'magic';
  if(['mace','gavel','frying-pan','broom','umbrella'].includes(kind))return 'blunt';
  return 'blade';
+}
+function sequence(events,kind){
+ const out=[];let delay=0;const blocked=events.includes('block');
+ for(const cue of events){
+  if(blocked&&cue==='hurt')continue; // One contact, not two unrelated impacts.
+  if(cue==='critical'){out.push({name:weaponCue(kind),delay},{name:'critical',delay:delay+.025});}
+  else out.push({name:cue==='strike'?weaponCue(kind):cue,delay});
+  delay+=.09;
+ }
+ return out.slice(-6);
 }
 class Player{
  constructor(host=globalThis,onError=()=>{}){this.host=host;this.onError=onError;this.enabled=false;this.volume=.55;this.context=null;this.buffers=new Map();this.voices=new Set();this.epoch=0;this.failed=false;this.hidden=false;}
@@ -84,5 +105,5 @@ class Player{
  stop(){this.epoch++;for(const source of this.voices){try{source.stop();source.disconnect();}catch{}}this.voices.clear();}
  visibility(hidden){this.hidden=hidden;if(hidden){this.stop();if(this.context?.state==='running')this.context.suspend().catch(()=>{});}}
 }
-globalThis.RPGSound={Player,synth,names,weaponCue,RATE};
+globalThis.RPGSound={Player,synth,names,weaponCue,sequence,RATE};
 })();

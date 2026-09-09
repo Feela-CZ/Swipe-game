@@ -52,7 +52,7 @@ function flushSounds(fallback=null){
  if(game.state.level>lastAudioLevel)events.push('level');lastAudioLevel=game.state.level;
  if(!events.length&&fallback)events.push(fallback);
  audio.configure(game.state.settings.sound,game.state.settings.volume);
- events.slice(-6).forEach((cue,i)=>{if(cue==='strike')cue=RPGSound.weaponCue(game.state.equipped.weapon?.kind);void audio.play(cue,i*.09);});
+ RPGSound.sequence(events,game.state.equipped.weapon?.kind).forEach(({name,delay})=>{void audio.play(name,delay);});
 }
 function save(){try{localStorage.setItem(KEY,JSON.stringify(game.state));}catch{if(!storageError){storageError=true;toast('Prohlížeč nemůže uložit postup. Nezavírej hru, dokud nepovolíš místní úložiště.');}}}
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),4000);}
@@ -196,7 +196,7 @@ function renderDialog(){
  }else if(dialog?.type==='chapter'){
   body='<h2 id="dialog-title">'+D.chapter.title+'</h2><p>Král drží Pomezí v nekončícím večeru. Osvoboď jeho poddané a zlom Korunu posledního světla.</p><ol class="chapter-list">'+D.areas.map((p,i)=>'<li><strong>'+(s.records[i].clears?'✓ ':i<s.unlocked?'→ ':'')+p.name+'</strong><p>'+(s.records[i].clears?'Osvobozeno. Dostupné ozvěny pro další kořist.':i<s.unlocked?p.quest:'Pokračování se odkryje po předchozí výpravě.')+'</p></li>').join('')+'</ol>'+btn('Zpět na mapu','close','','primary wide');
  }else if(dialog?.type==='audio'){
-  body='<h2 id="dialog-title">Zvuk hry</h2><p>Údery, obrana, kořist a interakce. Hudba zatím není přidaná.</p>'+btn(s.settings.sound?'Vypnout zvuky':'Zapnout zvuky','sound-toggle','','primary wide')+'<label class="audio-volume" for="audio-volume">Hlasitost efektů <output id="audio-value">'+Math.round(s.settings.volume*100)+' %</output><input id="audio-volume" type="range" min="0" max="100" step="5" value="'+Math.round(s.settings.volume*100)+'"></label>'+btn('Vyzkoušet zvuk štítu','sound-preview','','secondary wide',!s.settings.sound||!s.settings.volume)+'<p class="muted">Nastavení se ukládá. Po přepnutí aplikace zvuky utichnou.</p>'+btn('Zavřít','close','','text-button wide');
+  body='<h2 id="dialog-title">Zvuk hry</h2><p>Údery, obrana, kořist a interakce. Hudba zatím není přidaná.</p>'+btn(s.settings.sound?'Vypnout zvuky':'Zapnout zvuky','sound-toggle','','primary wide')+'<label class="audio-volume" for="audio-volume">Hlasitost efektů <output id="audio-value">'+Math.round(s.settings.volume*100)+' %</output><input id="audio-volume" type="range" min="0" max="100" step="5" value="'+Math.round(s.settings.volume*100)+'"></label>'+'<div class="dialog-actions">'+[['block','Kovový blok'],['blade','Čepel'],['blunt','Palice'],['arrow','Šíp'],['shield','Magická bariéra'],['heal','Léčení']].map(([cue,label])=>btn(label,'sound-preview',cue,'secondary',!s.settings.sound||!s.settings.volume)).join('')+'</div>'+'<p class="muted">Nastavení se ukládá. Po přepnutí aplikace zvuky utichnou.</p>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='currency'){
   const gold=dialog.id==='gold';body='<h2 id="dialog-title">'+(gold?'Zlato':'Esence')+'</h2><p class="currency-total">'+(gold?s.gold:s.essence)+'</p><p>'+(gold?'Za zlato nakupuješ výbavu a lektvary. Získáváš ho bojem, některými rozhodnutími, z truhel a prodejem předmětů. Štěstí zvyšuje odměny, ne prodejní ceny.':'Esence slouží ke slučování a výrobě jedinečných předmětů. Získáváš ji za boj, rozkladem výbavy a z truhel bez předmětu. Zlato ji nenahrazuje.')+'</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='journal'){
@@ -243,7 +243,7 @@ function dispatch(action,value){
   case 'speed':s.settings.speed=s.settings.speed===1?2:1;break;
   case 'sound':dialog={type:'audio'};break;
   case 'sound-toggle':s.settings.sound=!s.settings.sound;audio.configure(s.settings.sound,s.settings.volume);if(s.settings.sound)sound('equip');break;
-  case 'sound-preview':sound('block');break;
+  case 'sound-preview':sound(['block','blade','blunt','arrow','shield','heal'].includes(value)?value:'block');break;
   case 'growth':result=game.spend(value);break;
   case 'help':dialog={type:'help',id:value};break;
   case 'stat-help':if(statRows.some(x=>x[0]===value))dialog={type:'stat',id:value,back:dialog};break;

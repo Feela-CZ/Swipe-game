@@ -20,7 +20,7 @@ Výsledné staty zobrazují základ + součet nasazené výbavy = celkem; kliknu
 
 ## Zvuková sada
 
-24 vlastních procedurálních efektů: zbraně, zásah, blok, úhyb, kritický zásah, lektvary, mince, truhly, kovárna a odměny. Bez převzatých nahrávek a bez hudby. Zapínání a uložená hlasitost jsou pod reproduktorem v horní liště. Na pozadí se zvuky zastaví; chyba zvuku neblokuje hru. Podrobnosti v assets/SOUND-DESIGN.md.
+25 vlastních procedurálních efektů: zbraně, zásah, kovový blok, úhyb, kritický zásah podle zbraně, lektvary, mince, truhly, kovárna a odměny. Léčení a magická bariéra mají oddělené zvuky. Bez převzatých nahrávek a bez hudby. Pod reproduktorem v horní liště je hlasitost i šest ukázek. Na pozadí se zvuky zastaví; chyba zvuku neblokuje hru. Podrobnosti v assets/SOUND-DESIGN.md. Materiálové vyznění ještě vyžaduje poslech na skutečném zařízení.
 
 ## Spuštění a ověření
 

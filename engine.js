@@ -299,7 +299,7 @@ class Game {
    if(boss){if(r.flags.silent)this.log(r.area===0?'Poplašný zvon je vyřazený. Výběrčí nedostane posilu.':r.area===1?'Kořeny jsou přetnuté: jelen se nebude léčit. Pěšina ti dovolí ustoupit.':'Připravená zkratka ti dává prostor k ústupu.','story');else this.log('Boss se připravil na tvůj příchod: má o 10 % více životů.','story');}
   if(opening)this.log(opening,'story');
  }
- log(text,type='info',audio=true){const b=this.state.run?.battle;if(b){b.log.push({text,type});b.log=b.log.slice(-30);b.last=type;if(audio){const cue={attack:'strike',crit:'critical',dodge:'dodge',block:'block',heal:'shield',proc:'magic'}[type];if(cue)this.cue(cue);}}}
+ log(text,type='info',audio=true){const b=this.state.run?.battle;if(b){b.log.push({text,type});b.log=b.log.slice(-30);b.last=type;if(audio){const cue={attack:'strike',crit:'critical',dodge:'dodge',block:'block',heal:'heal',proc:'magic'}[type];if(cue)this.cue(cue);}}}
  step(){
   const s=this.state,r=s.run,b=r?.battle;if(!b||b.tactic||s.notice||s.pending.length)return false;
   if(b.turn==='player'){

@@ -3,7 +3,16 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 const scope=vm.createContext({console});
 for(const file of ['data.js','encounters.js','story.js','engine.js','audio.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),scope);
-const {synth,names,Player,weaponCue,RATE}=scope.RPGSound;
+const {synth,names,Player,weaponCue,sequence,RATE}=scope.RPGSound;
+assert.equal(names.length,25);
+assert.equal(sequence(['block','hurt'],'sword').map(x=>x.name).join(','),'block');
+assert.equal(sequence(['critical'],'bow').map(x=>x.name).join(','),'arrow,critical');
+assert.equal(sequence(['critical'],'wand').map(x=>x.name).join(','),'magic,critical');
+assert.equal(sequence(['strike','heal'],'mace').map(x=>x.name).join(','),'blunt,heal');
+assert.equal(sequence(['critical','critical','critical','critical'],'sword').length,6);
+const energy=(name,from,to)=>synth(name).slice(Math.floor(from*RATE),Math.floor(to*RATE)).reduce((sum,x)=>sum+x*x,0);
+assert.ok(energy('block',0,.05)>energy('coins',0,.05)*3,'weapon contact has more body than coins');
+assert.ok(energy('block',.4,.6)<energy('block',0,.2)*.1,'plate is damped, not a sustained bell');
 const fingerprints=new Set();let bytes=0;
 for(const name of names){
  const pcm=synth(name);bytes+=pcm.byteLength;let square=0,peak=0;
@@ -32,4 +41,5 @@ const g=new scope.RPG.Game(null,()=>.99);g.start();g.fight('guard');g.step();ass
 g.state.hp=20;g.potion();assert.ok(g.drainAudio().includes('potion'));g.state.potions=0;assert.equal(g.potion(),false);assert.equal(g.drainAudio().length,0);
 g.state.run.battle.hp=100;g.state.run.battle.maxHp=100;g.state.run.battle.turn='enemy';g.state.equipped={};g.enemy();assert.ok(g.drainAudio().includes('hurt'));
 g.state.settings.volume=.35;const restored=new scope.RPG.Game(g.state);assert.equal(restored.state.settings.volume,.35);assert.equal(restored.drainAudio().length,0);assert.ok(!JSON.stringify(g.state).includes('audioEvents'));
-console.log('24 original PCM cues verified: distinct finite unclipped signals, bounded memory; playback cache, mute, volume, voice cap, hide/resume, unsupported audio, real combat cues and save migration passed. No physical-speaker listening claim.');
+g.fight('guard');g.log('Léčení','heal');assert.equal(g.drainAudio().join(','),'heal');
+console.log('25 original PCM cues verified; contact/decay, weapon-specific critical layers, one block contact, separate healing, bounded signals and playback safeguards passed. No physical-speaker listening claim.');
