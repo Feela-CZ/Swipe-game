@@ -67,12 +67,12 @@ const seeded=new ctx.RPG.Game();seeded.state.growth.luck=2;const lucky=seeded.it
 storage.set('ne-ale-zabijim-v3',JSON.stringify(seeded.state));vm.runInContext(scripts.at(-1),ctx);dismissStories();const loadedLuckyId=state().inventory[0].id;
 click('tab','inventory');click('item',loadedLuckyId);assert.ok(overlay().includes('Prsten štěstí'));assert.ok(overlay().includes('ZMĚNA PO NASAZENÍ'));
 assert.ok(overlay().includes('2 → 5'));click('stat-help','luck');assert.ok(overlay().includes('nikoli přímá šance'));click('close');assert.ok(overlay().includes('Detail předmětu'));
-click('equip',loadedLuckyId);assert.ok(nodes.get('toast').textContent.includes('Štěstí 2 → 5'));click('tab','character');assert.ok(view().includes('2 <em>+ 3</em> = <b>5'));
+click('equip',loadedLuckyId);assert.ok(nodes.get('toast').textContent.includes('Štěstí 2 → 5'));click('tab','character');assert.ok(view().includes('2 <em>+3</em>'));assert.ok(!view().includes('data-action="growth"'));
 for(const key of ['damageMin','damageMax','maxHp','armor','crit','evasion','block','thorns','absorb','haste','luck','gold','xpBonus','leech','shieldCap']){
  click('stat-help',key);assert.ok(overlay().includes('ZÁKLAD + NASAZENÁ VÝBAVA'));sane();click('close');
 }
 click('stat-help','luck');assert.ok(overlay().includes('Prsten štěstí'));click('close');
-click('equipped','ring');click('unequip','ring');assert.ok(view().includes('2 <em>+ 0</em> = <b>2'));click('tab','map');click('start');assert.ok(!view().includes('held-weapon'));
+click('equipped','ring');click('unequip','ring');assert.ok(view().includes('<strong>Štěstí</strong><span>2</span>'));click('tab','map');click('start');assert.ok(!view().includes('held-weapon'));
 console.log('UI equipment regression passed: luck comparison, nested help/back, equip feedback, 15 stat explanations, unequip, portrait without weapon overlay.');
 assert.ok(view().includes('action-dock'));assert.ok(!view().includes('held-weapon'));
 click('tab','map');assert.ok(view().includes('map-screen'));click('location');assert.ok(overlay().includes('Mýtná věž'));click('close');
@@ -113,3 +113,16 @@ assert.ok(state().notice);assert.ok(view().includes('aria-label="Krysa s měšce
 assert.ok(!view().includes('NÁSLEDEK TVÉ CESTY'));
 assert.ok(sceneCss.includes('aspect-ratio:1'));assert.ok(sceneCss.includes('prefers-reduced-motion'));
 console.log('Scene regression passed: 13 distinct archetypes, all encounter mappings, correct ghost/king, contextual wallet/back, menu pause/resume, actor-specific lunges and outcome continuity.');
+
+const levelHero=new ctx.RPG.Game();levelHero.state.flags.chapterIntroSeen=true;levelHero.state.storyEvents=[];levelHero.xp(142);
+storage.set('ne-ale-zabijim-v3',JSON.stringify(levelHero.state));vm.runInContext(scripts.at(-1),ctx);
+click('tab','character');assert.ok(overlay().includes('Úroveň 1 → 3'));assert.ok(overlay().includes('<b>+10</b> max. životů'));assert.equal((overlay().match(/data-action="growth"/g)||[]).length,5);
+assert.ok(!view().includes('data-action="growth"'));assert.ok(view().includes('Dobrodruh na zkušební dobu'));assert.ok(!view().includes('screen-scroll'));
+click('growth','grit');assert.equal(state().points,1);assert.equal(state().growth.grit,1);click('close');assert.equal(state().levelNotice,null);assert.equal(nodes.get('points-dot').hidden,false);
+click('tab','character');assert.ok(overlay().includes('Rozděl body'));click('growth','might');click('close');assert.equal(nodes.get('points-dot').hidden,true);
+click('character-page','equipment');assert.equal((view().match(/data-action="equipped"/g)||[]).length,8);
+click('equipped','weapon');assert.match(overlay(),/Poškození \+\d+ až \+\d+</);click('close');
+click('character-page','effects');assert.equal((view().match(/data-action="stat-help"/g)||[]).length,6);click('stat-page',2);assert.equal((view().match(/data-action="stat-help"/g)||[]).length,3);
+const characterCss=await readFile(new URL('../character.css',import.meta.url),'utf8');assert.ok(characterCss.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
+assert.equal((html.match(/class="nav-icon"/g)||[]).length,4);assert.ok(!html.includes('<span>⌘</span>'));sane();
+console.log('Level-up and character UI passed: persisted multi-level rewards, training-only allocation, dismissal without losing points, compact pages, integer item damage and four SVG navigation icons.');

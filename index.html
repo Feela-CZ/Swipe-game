@@ -8,6 +8,7 @@
 <title>Quest Happens · Výpravy Sira Šmika</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="mobile-scene.css">
+<link rel="stylesheet" href="character.css">
 <script defer src="data.js"></script>
 <script defer src="encounters.js"></script>
 <script defer src="story.js"></script>
@@ -22,10 +23,10 @@
 <div class="statusbar" id="statusbar"></div>
 <main id="view" tabindex="-1"></main>
 <nav class="bottom-tabs" aria-label="Herní části">
-<button data-action="tab" data-value="map"><span>⌘</span>Mapa</button>
-<button data-action="tab" data-value="road"><span>⚔</span>Výprava</button>
-<button data-action="tab" data-value="character"><span>♙</span>Postava<i id="points-dot" hidden></i></button>
-<button data-action="tab" data-value="inventory"><span>▦</span>Výbava</button>
+<button data-action="tab" data-value="map"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 5 6-2 6 2 6-2v16l-6 2-6-2-6 2Z M9 3v16 M15 5v16"/></svg>Mapa</button>
+<button data-action="tab" data-value="road"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m4 3 4 1 11 13-2 2L4 8Z M3 21l4-4 M3 15l6 6 M21 3l-4 1-4 5 M21 3l-1 5-5 5 M17 17l4 4 M15 21l6-6"/></svg>Výprava</button>
+<button data-action="tab" data-value="character"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M4 21v-3a8 8 0 0 1 16 0v3Z M8 15l4 4 4-4"/></svg>Postava<i id="points-dot" hidden></i></button>
+<button data-action="tab" data-value="inventory"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5V3h6v2 M5 10a7 7 0 0 1 14 0v11H5Z M5 11h14 M8 15h8v6H8Z M10 11v3 M14 11v3"/></svg>Výbava</button>
 </nav>
 </div>
 <div id="overlay" class="overlay" hidden role="dialog" aria-modal="true" aria-labelledby="dialog-title" tabindex="-1"></div>

@@ -1,0 +1,32 @@
+/* Compact character pages, training dialog and consistent navigation pictograms. */
+.nav-icon{width:25px;height:25px;fill:none;stroke:currentColor;stroke-width:1.65;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.character-screen{height:100%;min-height:0;display:flex;flex-direction:column;gap:10px}
+.character-screen>.heading{margin:0;flex:none}.character-screen .eyebrow:empty{display:none}
+.character-screen h2{font-size:1.2rem}.character-screen .context-wallet{margin:0;gap:4px}.character-screen .currency{min-width:68px;padding:2px 6px}
+.character-summary{display:flex;align-items:center;gap:9px;flex:none}
+.character-summary img{width:48px;height:68px;object-fit:contain}.character-summary>div{flex:1;min-width:0}
+.character-summary h3{font-size:1rem;line-height:1.2;margin:3px 0}.character-summary small{font-size:.875rem;color:var(--muted)}
+.character-summary .health{height:4px;margin:5px 0}.character-summary>button{font-size:.875rem;padding:5px;min-height:44px}
+.character-sections{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;flex:none}
+.character-sections button{min-height:44px;border:1px solid var(--line);background:#10282d;border-radius:8px;font-size:.875rem}
+.character-sections button[aria-pressed=true]{border-color:var(--gold);color:var(--gold);background:#314034}
+.character-content{min-height:0;flex:1}.attribute-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.attribute-tile{display:flex;flex-direction:column;justify-content:center;align-items:center;min-width:0;min-height:95px;padding:9px 4px;gap:7px;background:linear-gradient(145deg,#214039,#10282c);border:1px solid #4e6b59;border-radius:11px;text-align:center}
+.attribute-tile strong{font-size:1rem;line-height:1.15;overflow-wrap:anywhere;color:#e9e7ce}
+.attribute-tile>span{font:1.4rem Georgia,serif;color:var(--gold)}.attribute-tile em{font:normal .875rem system-ui;color:var(--mint)}
+.training-tile{border-color:var(--gold)}.effect-grid .attribute-tile{min-height:95px}.effect-grid strong{font-size:.95rem}
+.stat-pages{display:flex;align-items:center;justify-content:space-between;margin-top:10px}.stat-pages button{min-height:44px;min-width:48px}
+.character-screen .equipment-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.character-screen .equipment{min-height:96px;padding:6px 3px;gap:3px}
+.character-screen .equipment .item-art{width:44px;height:44px}.character-screen .equipment small{font-size:.75rem}.character-screen .equipment b{font-size:.75rem}
+.level-up-content h2{font-size:1.6rem;margin:4px 0 12px}.level-rewards{display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center}
+.level-rewards span{padding:8px;background:#314537;border:1px solid #64754b;border-radius:9px;font-size:.875rem}.level-rewards b{display:block;font:1.5rem Georgia,serif;color:var(--gold)}
+.dialog-card .training-balance{margin:10px 0;font-size:1rem}.training-list{display:grid;gap:5px}.training-list>div{display:grid;grid-template-columns:1fr 38px 44px;gap:8px;align-items:center;min-height:44px;border-bottom:1px solid var(--line)}
+.training-list strong{font-size:1rem}.training-list>div>b{text-align:center;color:var(--gold)}.training-list .add-point{width:44px;height:44px}
+.dialog-card .training-help{font-size:.875rem;line-height:1.35;margin:10px 0}.level-up-content>.wide{min-height:44px;margin-top:4px}
+.battle-bonuses{position:absolute;left:5px;right:5px;top:5px;z-index:3;display:flex;justify-content:space-between;gap:12px;pointer-events:none}
+.battle-bonuses>div{display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:49%}.battle-bonuses .enemy-bonuses{align-items:flex-end}
+.battle-bonuses span{background:#092920e8;color:#b2ecc0;border:1px solid #528769;border-radius:5px;padding:3px 5px;font-size:.875rem;line-height:1.15}
+.enemy-bonuses span{background:#341c1ee8;color:#ffcab2;border-color:#926254}
+@media(max-height:650px){.character-screen{gap:6px}.character-summary img{height:48px}.character-screen .equipment{min-height:83px}.character-screen .equipment .item-art{width:36px;height:36px}.level-up-content h2{margin-bottom:7px}.level-rewards span{padding:5px}.dialog-card:has(.level-up-content){padding:14px}}
+/* Accessibility fallback for enlarged type/very short landscape viewports. */
+@media(max-height:480px){.character-content{overflow-y:auto}.character-summary{display:none}}

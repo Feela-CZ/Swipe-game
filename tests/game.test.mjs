@@ -137,7 +137,7 @@ test('boss scripts remain binary, pause clocks, then resolve in every area',()=>
  }
 });
 test('region bosses use distinct mechanics affected by preparation',()=>{
- const bell=fresh();bell.start();bell.fight('boss',true);bell.state.run.battle.turn='enemy';bell.random=()=>.99;bell.enemy();assert.ok(bell.state.run.battle.log.some(x=>x.text.includes('Zvon přivolal')));
+ const bell=fresh();bell.start();bell.fight('boss',true);bell.state.run.battle.turn='enemy';bell.random=()=>.99;bell.enemy();assert.ok(bell.state.run.battle.log.some(x=>x.text.includes('Posílený útok')));
  const roots=fresh();roots.state.unlocked=2;roots.start(1);roots.fight('boss',true);roots.state.run.battle.hp-=20;roots.state.run.battle.round=2;roots.random=()=>.99;roots.enemy();assert.ok(roots.state.run.battle.log.some(x=>x.text.includes('Kořeny vrátily')));
  const shell=fresh();shell.state.unlocked=3;shell.state.growth.might=30;shell.start(2);shell.fight('boss',true);shell.step();shell.tactic('right');assert.ok(shell.state.run.battle.shellBroken);
 });
@@ -201,6 +201,27 @@ test('retreat and defeat provide feedback without awarding story progress',()=>{
 });
 test('all 48 item kinds have unique atlas cells',()=>{
  assert.equal(new Set(Object.values(D.itemArt)).size,48);for(const d of D.itemKinds)assert.ok(Number.isInteger(D.itemArt[d.id]));
+});
+test('level rewards aggregate, survive reload, and never duplicate',()=>{
+ const g=fresh(),hp=g.stats().maxHp,current=g.state.hp;g.xp(142);
+ assert.equal(g.state.level,3);assert.equal(g.state.points,2);assert.equal(g.stats().maxHp,hp+10);assert.equal(g.state.hp,current+10);
+ assert.deepEqual(plain(g.state.levelNotice),{from:1,to:3,hp:10,points:2});
+ const loaded=new Game(plain(g.state));assert.equal(loaded.stats().maxHp,g.stats().maxHp);assert.equal(loaded.state.hp,g.state.hp);assert.deepEqual(plain(loaded.state.levelNotice),plain(g.state.levelNotice));
+ loaded.spend('grit');assert.equal(loaded.stats().maxHp,hp+17);assert.equal(loaded.state.points,1);
+ loaded.state.levelNotice=null;assert.equal(new Game(plain(loaded.state)).state.levelNotice,null);
+});
+test('consequence prose hides future rules, combat badges reflect active arithmetic',()=>{
+ const g=fresh();g.start();g.state.run.rooms=['event-omen-0','boss'];g.choose('right');assert.ok(!/10 %|nepřátelé mají/.test(g.state.notice.text));
+ g.state.notice=null;g.fight('boss');assert.ok(g.combatEffects().enemy.includes('Životy +21 %'));
+ g.state.run.flags.blessed=true;g.state.run.flags.ambush=true;g.state.run.shield=12;
+ assert.ok(g.combatEffects().hero.includes('Ochrana −65 %'));assert.ok(g.combatEffects().hero.includes('Štít 12'));assert.ok(g.combatEffects().hero.includes('První úder +65 %'));
+ g.state.run.battle.round=1;assert.ok(!g.combatEffects().hero.includes('První úder +65 %'));g.receive(10,true);assert.ok(!g.combatEffects().hero.includes('Ochrana −65 %'));
+ const h=fresh();h.start();h.state.run.rooms=['event-ambush-0'];h.choose('right');assert.ok(h.combatEffects().enemy.includes('Životy +15 %'));assert.ok(h.combatEffects().enemy.includes('Útok −2'));
+});
+test('item damage contribution uses integer values consistently',()=>{
+ const g=fresh();g.state.equipped={};const base=g.stats();
+ for(const kind of ['dagger','ring','amulet']){const it=g.item(kind,'rare',4,[['damage',2]]),slot=D.itemById[kind].slot,p=g.basePower(it),a=g.stats({[slot]:it});
+ assert.equal(a.damageMin-base.damageMin,Math.round(p*(slot==='weapon'?1.6:.3))+2);assert.equal(a.damageMax-base.damageMax,Math.round(p*(slot==='weapon'?2:.5))+2);}
 });
 // Difficulty calibration lives in expedition.test.mjs with explicit player policies.
 console.log(passed+' domain regression tests passed.');
