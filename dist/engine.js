@@ -35,13 +35,14 @@ class Game {
   equipped.weapon=this.item('dagger','common',1,[['damage',2]]);
   equipped.body=this.item('cloak','common',1,[['vitality',8]]);
   equipped.feet=this.item('boots','common',1,[['evasion',3]]);
-  return {version:3,level:1,xp:0,points:0,levelNotice:null,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
-   gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:24,pending:[],notice:null,
+  return {version:3,heroName:'',level:1,xp:0,points:0,levelNotice:null,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
+   gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:20,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
    unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1},lastReport:null,
    storyEvents:[],metrics:{choices:0,merges:0,runs:0,bosses:0}};
  }
  migrate(raw){
+  this.setHeroName(raw.heroName);
   const s=this.state,g=raw.growth||{};
   s.level=Math.max(1,integer(raw.level,1));s.xp=integer(raw.xp);s.points=integer(raw.points??raw.statPoints);
   if(raw.levelNotice&&integer(raw.levelNotice.to)===s.level)s.levelNotice={from:Math.max(1,integer(raw.levelNotice.from,1)),to:s.level,hp:integer(raw.levelNotice.hp),points:integer(raw.levelNotice.points)};
@@ -62,7 +63,7 @@ class Game {
    if(!s.equipped[slot])s.equipped[slot]=it;else s.inventory.push(it);
   }
   for(const item of raw.inventory||[]){const it=sanitize(item);if(it)s.inventory.push(it);}
-  s.capacity=Math.max(24,s.inventory.length);
+  s.capacity=20; // Legacy overflow is kept, but no new items fit until below the limit.
   s.journal=Array.isArray(raw.journal)?raw.journal.slice(-60).map(narrative):[];
   s.flags=raw.version===3?{...raw.flags}:{};
   s.storyEvents=Array.isArray(raw.storyEvents)?copy(raw.storyEvents).filter(x=>x&&typeof x.text==='string'&&Array.isArray(x.replies)&&Array.isArray(x.answers)).slice(0,20):[];
@@ -86,6 +87,11 @@ class Game {
   }
   s.hp=clamp(Number.isFinite(raw.hp)?raw.hp:120,1,this.stats().maxHp);
   this.serial+=s.inventory.length+100;
+ }
+ setHeroName(value){
+  const name=typeof value==='string'?value.trim().replace(/\s+/g,' '):'';
+  if(!/^[\p{L}\p{M}][\p{L}\p{M} '\-]{1,23}$/u.test(name))return false;
+  this.state.heroName=name;return true;
  }
  basePower(item){
   const d=D.itemById[item.kind];
@@ -142,7 +148,7 @@ class Game {
  }
  storyReply(index){
   const event=this.state.storyEvents[0];if(!event||event.response!==undefined||!Number.isInteger(index)||!event.replies[index])return false;
-  event.response=index;this.jot(event.speaker+': '+event.text+' Šmik: '+event.replies[index]+' '+event.answers[index]);return true;
+  event.response=index;this.jot(event.speaker+': '+event.text+' '+this.state.heroName+': '+event.replies[index]+' '+event.answers[index]);return true;
  }
  closeStory(){
   const s=this.state,event=s.storyEvents[0];if(!event||event.response===undefined)return false;
@@ -349,7 +355,7 @@ class Game {
    if(b.mechanic==='tribute'&&hit<b.damage*1.5){hit=Math.max(1,hit-3);this.log('Daň ze slabých úderů: králův erb pohltil 3 poškození.','enemy');}
    if(D.itemById[s.equipped.weapon?.kind]?.id==='bow'&&b.round===0)hit=Math.round(hit*1.3);
    b.hp=Math.max(0,b.hp-hit);b.round++;b.lastHit=hit;
-   this.log('Šmik → '+hit+' poškození'+(critical?' · KRITICKÝ ZÁSAH':''),critical?'crit':'attack');
+   this.log((s.heroName||'Dobrodruh')+' → '+hit+' poškození'+(critical?' · KRITICKÝ ZÁSAH':''),critical?'crit':'attack');
    if(a.leech){const heal=Math.max(1,Math.round(hit*a.leech/100));this.heal(heal,a.traits.includes('overflow'));this.log('Kradení života +'+heal+(r.shield?' · štít '+r.shield:''),'heal');}
    if(b.hp<=0){this.win();return true;}
    const phase=b.hp/b.maxHp<=.35?'last':'first';
@@ -454,7 +460,8 @@ class Game {
   if(action==='equip'){
    if(s.run?.battle)return false;
    const slot=D.itemById[p.item.kind].slot,old=s.equipped[slot];if(old&&s.inventory.length>=s.capacity)return false;
-   if(old)s.inventory.push(old);s.equipped[slot]=p.item;s.hp=Math.min(s.hp,this.stats().maxHp);
+   const hp=this.equipmentHp({...s.equipped,[slot]:p.item});if(hp<1)return false;
+   if(old)s.inventory.push(old);s.equipped[slot]=p.item;s.hp=hp;
   }else if(action==='sell')s.gold+=this.price(p.item);
   else if(action==='salvage')s.essence+=2+D.rarityIndex(p.item.rarity)*2;
   else if(action==='take')s.inventory.push(p.item);else return false;
@@ -462,10 +469,12 @@ class Game {
  }
  equip(id){
   const s=this.state;if(s.run?.battle)return false;const n=s.inventory.findIndex(x=>x.id===id);if(n<0)return false;
-  const it=s.inventory[n],slot=D.itemById[it.kind].slot,old=s.equipped[slot];s.inventory.splice(n,1);if(old)s.inventory.push(old);
-  s.equipped[slot]=it;s.hp=Math.min(s.hp,this.stats().maxHp);return true;
+  const it=s.inventory[n],slot=D.itemById[it.kind].slot,old=s.equipped[slot],hp=this.equipmentHp({...s.equipped,[slot]:it});if(hp<1)return false;
+  s.inventory.splice(n,1);if(old)s.inventory.push(old);
+  s.equipped[slot]=it;s.hp=hp;return true;
  }
- unequip(slot){const s=this.state;if(s.run?.battle||!s.equipped[slot]||s.inventory.length>=s.capacity)return false;s.inventory.push(s.equipped[slot]);s.equipped[slot]=null;s.hp=Math.min(s.hp,this.stats().maxHp);return true;}
+ equipmentHp(equipped){return this.stats(equipped).maxHp-(this.stats().maxHp-this.state.hp);}
+ unequip(slot){const s=this.state;if(s.run?.battle||!s.equipped[slot]||s.inventory.length>=s.capacity)return false;const hp=this.equipmentHp({...s.equipped,[slot]:null});if(hp<1)return false;s.inventory.push(s.equipped[slot]);s.equipped[slot]=null;s.hp=hp;return true;}
  sell(id,salvage=false){const s=this.state,n=s.inventory.findIndex(x=>x.id===id);if(n<0)return false;const it=s.inventory[n];if(salvage)s.essence+=2+D.rarityIndex(it.rarity)*2;else s.gold+=this.price(it);s.inventory.splice(n,1);return true;}
  mergePreview(baseId,donorId){
   const s=this.state,a=s.inventory.find(x=>x.id===baseId),b=s.inventory.find(x=>x.id===donorId);

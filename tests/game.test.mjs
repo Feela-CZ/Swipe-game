@@ -115,8 +115,8 @@ test('shop price is exact and visible goods are guaranteed',()=>{
  assert.equal(g.state.pending[0].item.rarity,row.rarity);
 });
 test('full inventory never loses pending loot; sale frees space',()=>{
- const g=fresh();for(let i=0;i<24;i++)g.state.inventory.push(g.item('sword'));g.state.pending=[{type:'item',item:g.item('ring')}];
- assert.equal(g.loot('take'),false);assert.equal(g.state.pending.length,1);g.sell(g.state.inventory[0].id);assert.ok(g.loot('take'));assert.equal(g.state.inventory.length,24);
+ const g=fresh();for(let i=0;i<20;i++)g.state.inventory.push(g.item('sword'));g.state.pending=[{type:'item',item:g.item('ring')}];
+ assert.equal(g.loot('take'),false);assert.equal(g.state.pending.length,1);g.sell(g.state.inventory[0].id);assert.ok(g.loot('take'));assert.equal(g.state.inventory.length,20);
 });
 test('targeted recipe deducts exact materials and has a defined signature',()=>{
  const g=fresh();g.state.records[0].marks=4;g.state.essence=10;assert.ok(g.craft(0));
@@ -222,6 +222,26 @@ test('item damage contribution uses integer values consistently',()=>{
  const g=fresh();g.state.equipped={};const base=g.stats();
  for(const kind of ['dagger','ring','amulet']){const it=g.item(kind,'rare',4,[['damage',2]]),slot=D.itemById[kind].slot,p=g.basePower(it),a=g.stats({[slot]:it});
  assert.equal(a.damageMin-base.damageMin,Math.round(p*(slot==='weapon'?1.6:.3))+2);assert.equal(a.damageMax-base.damageMax,Math.round(p*(slot==='weapon'?2:.5))+2);}
+});
+test('equipment preserves missing HP through full, wounded and direct loot cycles',()=>{
+ const g=fresh();g.state.hp=g.stats().maxHp;
+ const hp=g.state.hp;assert.ok(g.unequip('feet'));assert.equal(g.state.hp,g.stats().maxHp);
+ assert.ok(g.equip(g.state.inventory[0].id));assert.equal(g.state.hp,hp);
+ g.state.hp-=23;for(let i=0;i<5;i++){assert.ok(g.unequip('feet'));assert.equal(g.stats().maxHp-g.state.hp,23);assert.ok(g.equip(g.state.inventory[0].id));assert.equal(g.state.hp,hp-23);}
+ const better=g.item('boots','rare',3,[['vitality',35]]);g.state.pending=[{type:'item',item:better}];assert.ok(g.loot('equip'));assert.equal(g.stats().maxHp-g.state.hp,23);
+ const loaded=new Game(plain(g.state));assert.equal(loaded.state.hp,g.state.hp);assert.equal(loaded.stats().maxHp-loaded.state.hp,23);
+ g.state.hp=1;const before=plain(g.state);assert.equal(g.unequip('feet'),false);assert.deepEqual(plain(g.state),before);
+});
+test('legacy overflow remains recoverable without increasing new capacity',()=>{
+ const g=fresh();for(let i=0;i<24;i++)g.state.inventory.push(g.item('sword'));
+ const loaded=new Game(plain(g.state));assert.equal(loaded.state.capacity,20);assert.equal(loaded.state.inventory.length,24);
+ loaded.state.pending=[{type:'item',item:loaded.item('ring')}];assert.equal(loaded.loot('take'),false);
+ for(let i=0;i<5;i++)loaded.sell(loaded.state.inventory[0].id);
+ assert.ok(loaded.loot('take'));assert.equal(loaded.state.inventory.length,20);
+});
+test('custom names validate and migrate without touching progression',()=>{
+ const g=fresh();g.start();const before=plain(g.state);assert.equal(g.setHeroName('<script>'),false);assert.equal(g.setHeroName(' '),false);assert.equal(g.setHeroName('A'),false);assert.equal(g.setHeroName('A'.repeat(25)),false);
+ assert.ok(g.setHeroName("  Žan O'Neil  "));assert.equal(g.state.heroName,"Žan O'Neil");const loaded=new Game(plain(g.state));assert.equal(loaded.state.heroName,g.state.heroName);assert.equal(loaded.state.gold,before.gold);assert.deepEqual(plain(loaded.state.run),before.run);
 });
 // Difficulty calibration lives in expedition.test.mjs with explicit player policies.
 console.log(passed+' domain regression tests passed.');

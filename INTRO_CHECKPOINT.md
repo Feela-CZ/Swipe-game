@@ -1,4 +1,10 @@
-# Intro/name checkpoint — paused at 88% usage, 2026-09-09
+# Intro/name checkpoint — completed 2026-09-10
+
+UPDATE: The previously paused work below has been completed. 35 domain regressions and UI journeys pass, including name migration, invalid/Unicode names, reload persistence, keyboard submit and combat pause/resume. No browser or physical-phone visual testing was performed. dist is refreshed from the release source before publication.
+
+This release also adds 20 compact inventory slots with equipped items above and a separate forge dialog. Legacy inventories above capacity retain all items. Gear changes preserve missing HP: full stays full, repeated swaps do not heal, and changes that would kill the hero are refused. Attribute tiles show rounded totals; breakdown remains on click. Inventory filler was removed. The existing save key, artwork, repository and owner-private site are retained.
+
+## Historical checkpoint (superseded)
 
 Base live commit: b592580d41d0be543f510a010713a06302bd4341, Sites version 15. DO NOT publish this checkpoint before finishing regression checks. dist is intentionally still the stable release.
 

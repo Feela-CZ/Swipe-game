@@ -36,7 +36,7 @@ class Game {
   equipped.body=this.item('cloak','common',1,[['vitality',8]]);
   equipped.feet=this.item('boots','common',1,[['evasion',3]]);
   return {version:3,heroName:'',level:1,xp:0,points:0,levelNotice:null,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
-   gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:24,pending:[],notice:null,
+   gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:20,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
    unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1},lastReport:null,
    storyEvents:[],metrics:{choices:0,merges:0,runs:0,bosses:0}};
@@ -63,7 +63,7 @@ class Game {
    if(!s.equipped[slot])s.equipped[slot]=it;else s.inventory.push(it);
   }
   for(const item of raw.inventory||[]){const it=sanitize(item);if(it)s.inventory.push(it);}
-  s.capacity=Math.max(24,s.inventory.length);
+  s.capacity=20; // Legacy overflow is kept, but no new items fit until below the limit.
   s.journal=Array.isArray(raw.journal)?raw.journal.slice(-60).map(narrative):[];
   s.flags=raw.version===3?{...raw.flags}:{};
   s.storyEvents=Array.isArray(raw.storyEvents)?copy(raw.storyEvents).filter(x=>x&&typeof x.text==='string'&&Array.isArray(x.replies)&&Array.isArray(x.answers)).slice(0,20):[];
@@ -460,7 +460,8 @@ class Game {
   if(action==='equip'){
    if(s.run?.battle)return false;
    const slot=D.itemById[p.item.kind].slot,old=s.equipped[slot];if(old&&s.inventory.length>=s.capacity)return false;
-   if(old)s.inventory.push(old);s.equipped[slot]=p.item;s.hp=Math.min(s.hp,this.stats().maxHp);
+   const hp=this.equipmentHp({...s.equipped,[slot]:p.item});if(hp<1)return false;
+   if(old)s.inventory.push(old);s.equipped[slot]=p.item;s.hp=hp;
   }else if(action==='sell')s.gold+=this.price(p.item);
   else if(action==='salvage')s.essence+=2+D.rarityIndex(p.item.rarity)*2;
   else if(action==='take')s.inventory.push(p.item);else return false;
@@ -468,10 +469,12 @@ class Game {
  }
  equip(id){
   const s=this.state;if(s.run?.battle)return false;const n=s.inventory.findIndex(x=>x.id===id);if(n<0)return false;
-  const it=s.inventory[n],slot=D.itemById[it.kind].slot,old=s.equipped[slot];s.inventory.splice(n,1);if(old)s.inventory.push(old);
-  s.equipped[slot]=it;s.hp=Math.min(s.hp,this.stats().maxHp);return true;
+  const it=s.inventory[n],slot=D.itemById[it.kind].slot,old=s.equipped[slot],hp=this.equipmentHp({...s.equipped,[slot]:it});if(hp<1)return false;
+  s.inventory.splice(n,1);if(old)s.inventory.push(old);
+  s.equipped[slot]=it;s.hp=hp;return true;
  }
- unequip(slot){const s=this.state;if(s.run?.battle||!s.equipped[slot]||s.inventory.length>=s.capacity)return false;s.inventory.push(s.equipped[slot]);s.equipped[slot]=null;s.hp=Math.min(s.hp,this.stats().maxHp);return true;}
+ equipmentHp(equipped){return this.stats(equipped).maxHp-(this.stats().maxHp-this.state.hp);}
+ unequip(slot){const s=this.state;if(s.run?.battle||!s.equipped[slot]||s.inventory.length>=s.capacity)return false;const hp=this.equipmentHp({...s.equipped,[slot]:null});if(hp<1)return false;s.inventory.push(s.equipped[slot]);s.equipped[slot]=null;s.hp=hp;return true;}
  sell(id,salvage=false){const s=this.state,n=s.inventory.findIndex(x=>x.id===id);if(n<0)return false;const it=s.inventory[n];if(salvage)s.essence+=2+D.rarityIndex(it.rarity)*2;else s.gold+=this.price(it);s.inventory.splice(n,1);return true;}
  mergePreview(baseId,donorId){
   const s=this.state,a=s.inventory.find(x=>x.id===baseId),b=s.inventory.find(x=>x.id===donorId);

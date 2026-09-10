@@ -3,7 +3,7 @@ import vm from 'node:vm';
 import assert from 'node:assert/strict';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
-assert.ok(html.includes('<title>Quest Happens · Výpravy Sira Šmika</title>'));
+assert.ok(html.includes('<title>Quest Happens · Fantasy výpravy</title>'));
 assert.ok(html.includes('<h1>Quest Happens</h1>'));assert.ok(html.includes('lang="cs"'));
 const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','scenes.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
@@ -20,7 +20,7 @@ const ctx=vm.createContext({console,document,window,localStorage:{getItem:k=>sto
 for(const source of scripts)vm.runInContext(source,ctx);
 assert.equal(ctx.RPGData.rarities.map(r=>r.label).join(','),'Common,Uncommon,Rare,Epic,Legendary,Mythic');
 // UI journey uses a durable character; starter difficulty is measured separately.
-const uiHero=new ctx.RPG.Game();uiHero.state.growth.might=12;uiHero.state.growth.grit=12;uiHero.rest();
+const uiHero=new ctx.RPG.Game();uiHero.setHeroName('Vendel');uiHero.state.growth.might=12;uiHero.state.growth.grit=12;uiHero.rest();
 storage.set('ne-ale-zabijim-v3',JSON.stringify(uiHero.state));vm.runInContext(scripts.at(-1),ctx);
 const view=()=>nodes.get('view').innerHTML,overlay=()=>nodes.get('overlay').innerHTML;
 const state=()=>JSON.parse(storage.get('ne-ale-zabijim-v3'));
@@ -63,11 +63,11 @@ click('journal');assert.ok(overlay().includes('Kronika'));click('close');
 assert.ok(css.includes('[hidden]{display:none!important}'));assert.ok(css.includes('prefers-reduced-motion'));
 assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-modal="true"'));
 console.log('UI integration passed: initial render, four tabs, modal focus/inert state, shop/potions, branching expedition, saved resume, timed combat, tactical boss, loot and inventory. No real-browser layout or physical-device claim.');
-const seeded=new ctx.RPG.Game();seeded.state.growth.luck=2;const lucky=seeded.item('ring','rare',1,[['luck',3]]);seeded.state.inventory.push(lucky);
+const seeded=new ctx.RPG.Game();seeded.setHeroName('Vendel');seeded.state.growth.luck=2;const lucky=seeded.item('ring','rare',1,[['luck',3]]);seeded.state.inventory.push(lucky);
 storage.set('ne-ale-zabijim-v3',JSON.stringify(seeded.state));vm.runInContext(scripts.at(-1),ctx);dismissStories();const loadedLuckyId=state().inventory[0].id;
 click('tab','inventory');click('item',loadedLuckyId);assert.ok(overlay().includes('Prsten štěstí'));assert.ok(overlay().includes('ZMĚNA PO NASAZENÍ'));
 assert.ok(overlay().includes('2 → 5'));click('stat-help','luck');assert.ok(overlay().includes('nikoli přímá šance'));click('close');assert.ok(overlay().includes('Detail předmětu'));
-click('equip',loadedLuckyId);assert.ok(nodes.get('toast').textContent.includes('Štěstí 2 → 5'));click('tab','character');assert.ok(view().includes('2 <em>+3</em>'));assert.ok(!view().includes('data-action="growth"'));
+click('equip',loadedLuckyId);assert.ok(nodes.get('toast').textContent.includes('Štěstí 2 → 5'));click('tab','character');assert.ok(view().includes('<strong>Štěstí</strong><span>5</span>'));assert.ok(!view().includes('data-action="growth"'));
 for(const key of ['damageMin','damageMax','maxHp','armor','crit','evasion','block','thorns','absorb','haste','luck','gold','xpBonus','leech','shieldCap']){
  click('stat-help',key);assert.ok(overlay().includes('ZÁKLAD + NASAZENÁ VÝBAVA'));sane();click('close');
 }
@@ -97,7 +97,7 @@ for(const entry of ctx.RPGData.encounters){const a=ctx.RPGScenes.encounter(entry
 assert.equal(ctx.RPGScenes.encounter({},{area:0},{kind:'spirit'}).cell,4,'A ghost is not a stag');
 assert.equal(ctx.RPGScenes.encounter({},{area:4},{boss:true}).cell,5,'Mountain finale depicts the king, not a stag');
 
-const sceneGame=new ctx.RPG.Game();sceneGame.state.storyEvents=[];sceneGame.start();sceneGame.state.storyEvents=[];
+const sceneGame=new ctx.RPG.Game();sceneGame.setHeroName('Vendel');sceneGame.state.storyEvents=[];sceneGame.start();sceneGame.state.storyEvents=[];
 sceneGame.state.run.rooms=['patrol','scribe','boss'];sceneGame.state.run.index=0;sceneGame.state.notice=null;
 storage.set('ne-ale-zabijim-v3',JSON.stringify(sceneGame.state));vm.runInContext(scripts.at(-1),ctx);click('tab','road');
 assert.ok(!view().includes('location-emblem'));assert.ok(!view().includes('data-action="retreat-confirm"'));
@@ -114,7 +114,7 @@ assert.ok(!view().includes('NÁSLEDEK TVÉ CESTY'));
 assert.ok(sceneCss.includes('aspect-ratio:1'));assert.ok(sceneCss.includes('prefers-reduced-motion'));
 console.log('Scene regression passed: 13 distinct archetypes, all encounter mappings, correct ghost/king, contextual wallet/back, menu pause/resume, actor-specific lunges and outcome continuity.');
 
-const levelHero=new ctx.RPG.Game();levelHero.state.flags.chapterIntroSeen=true;levelHero.state.storyEvents=[];levelHero.xp(142);
+const levelHero=new ctx.RPG.Game();levelHero.setHeroName('Vendel');levelHero.state.flags.chapterIntroSeen=true;levelHero.state.storyEvents=[];levelHero.xp(142);
 storage.set('ne-ale-zabijim-v3',JSON.stringify(levelHero.state));vm.runInContext(scripts.at(-1),ctx);
 click('tab','character');assert.ok(overlay().includes('Úroveň 1 → 3'));assert.ok(overlay().includes('<b>+10</b> max. životů'));assert.equal((overlay().match(/data-action="growth"/g)||[]).length,5);
 assert.ok(!view().includes('data-action="growth"'));assert.ok(view().includes('Dobrodruh na zkušební dobu'));assert.ok(!view().includes('screen-scroll'));
@@ -126,3 +126,20 @@ click('character-page','effects');assert.equal((view().match(/data-action="stat-
 const characterCss=await readFile(new URL('../character.css',import.meta.url),'utf8');assert.ok(characterCss.includes('grid-template-columns:repeat(3,minmax(0,1fr))'));
 assert.equal((html.match(/class="nav-icon"/g)||[]).length,4);assert.ok(!html.includes('<span>⌘</span>'));sane();
 console.log('Level-up and character UI passed: persisted multi-level rewards, training-only allocation, dismissal without losing points, compact pages, integer item damage and four SVG navigation icons.');
+
+click('tab','inventory');assert.equal((view().match(/class="bag-slot/g)||[]).length,20);assert.equal((view().match(/data-action="equipped"/g)||[]).length,8);
+assert.ok(!/Každý kus má příběh|Kapsy mají místo|ŠLECHTĚNÍ VÝBAVY/.test(view()));
+click('forge');assert.ok(overlay().includes('Kovárna'));assert.ok(!overlay().includes('currency gold'));click('close');
+click('character-page','effects');click('tab','character');assert.ok(!view().includes('<em>'));click('stat-help','armor');assert.ok(overlay().includes('ZÁKLAD + NASAZENÁ VÝBAVA'));click('close');
+click('equipped','body');assert.ok(!/Zbroj \+\d+[,.]\d/.test(overlay()));click('close');
+
+const unnamed=new ctx.RPG.Game();unnamed.state.flags.chapterIntroSeen=true;unnamed.start();unnamed.state.storyEvents=[];unnamed.state.notice=null;unnamed.fight('guard');
+storage.set('ne-ale-zabijim-v3',JSON.stringify(unnamed.state));vm.runInContext(scripts.at(-1),ctx);
+assert.ok(overlay().includes('Jak se jmenuješ?'));assert.ok(overlay().includes('value="Vendel"'));const savedRun=JSON.stringify(state().run),savedGold=state().gold;
+click('start');assert.equal(JSON.stringify(state().run),savedRun);
+handlers.input({target:{id:'hero-name',value:'<img onerror=alert(1)>'}});click('name-confirm');assert.equal(state().heroName,'');assert.ok(overlay().includes('Jak se jmenuješ?'));
+handlers.input({target:{id:'hero-name',value:"Žan O'Neil"}});handlers.visibilitychange();assert.ok(overlay().includes('Žan O&#39;Neil'));
+handlers.keydown({key:'Enter',target:{id:'hero-name'},preventDefault(){}});assert.equal(state().heroName,"Žan O'Neil");assert.equal(JSON.stringify(state().run),savedRun);assert.equal(state().gold,savedGold);
+click('tab','road');assert.ok(nodes.get('statusbar').innerHTML.includes('Žan O&#39;Neil'));assert.ok(!view().includes('Šmik'));assert.ok([...timers.values()].some(t=>t.ms>0&&t.ms<=1050));
+vm.runInContext(scripts.at(-1),ctx);assert.ok(!overlay().includes('Jak se jmenuješ?'));assert.equal(state().heroName,"Žan O'Neil");
+console.log('Intro/inventory regressions passed: 20 slots, equipped row, concise copy, total-only stats, integer armor, name validation/escaping, preserved save and resumed combat.');
