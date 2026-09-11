@@ -62,7 +62,7 @@ const btn=(label,action,value='',classes='',disabled=false)=>'<button class="'+c
 const name=it=>it.name||(it.kind==='ring'&&it.affixes.some(x=>x.id==='luck')?'Prsten štěstí':D.itemById[it.kind].label);
 const pct=new Set(['crit','evasion','leech','gold','thorns','haste','block','xpBonus']);
 const fmt=n=>String(Math.round(n)),unit=k=>pct.has(k)?' %':'';
-const statRows=[['damageMin','Min. poškození'],['damageMax','Max. poškození'],['maxHp','Životy'],['armor','Zbroj'],['crit','Kritická šance'],['evasion','Úhyb'],['block','Blok'],['thorns','Trny'],['absorb','Pohlcení'],['haste','Rychlost'],['luck','Štěstí'],['gold','Bonus zlata'],['xpBonus','Bonus zkušeností'],['leech','Kradení života'],['shieldCap','Kapacita štítu']];
+const statRows=[['might','Síla'],['grit','Odolnost'],['agility','Obratnost'],['intelligence','Inteligence'],['luck','Štěstí'],['perception','Všímavost'],['damageMin','Min. poškození'],['damageMax','Max. poškození'],['maxHp','Životy'],['armor','Zbroj'],['crit','Kritická šance'],['evasion','Úhyb'],['block','Blok'],['thorns','Trny'],['absorb','Pohlcení'],['haste','Rychlost'],['gold','Bonus zlata'],['xpBonus','Bonus zkušeností'],['leech','Kradení života'],['shieldCap','Kapacita štítu']];
 function itemArt(kind){
  const cell=D.itemArt[kind],d=D.itemById[kind];
  return cell===undefined?'<span class="item-monogram" aria-hidden="true">'+esc(d.label.split(' ').map(x=>x[0]).slice(0,2).join(''))+'</span>':'<span class="item-art atlas-'+(1+Math.floor(cell/16))+'" aria-hidden="true" style="--item-x:'+(cell%4*100/3)+'%;--item-y:'+(Math.floor(cell%16/4)*100/3)+'%"></span>';
@@ -73,21 +73,26 @@ function statFormula(key,b=game.statBreakdown()){
 function statExplanation(key){
  const a=game.stats(),reduction=100*Math.min(.65,a.armor/(a.armor+85));
  const descriptions={
+ might:'Síla zvyšuje poškození, pomáhá při přerušování těžkých útoků a může uspět při fyzickém získávání materiálů. Některé příběhové zkoušky ji použijí jako pravděpodobnost, ne jako automatický úspěch.',
+ grit:'Odolnost přidává životy a zbroj. V událostech omezuje zranění z pastí, ostrých hran a namáhavých řešení; ani vysoká hodnota však neodstraní každé riziko.',
+ agility:'Obratnost zvyšuje kritickou šanci a úhyb. Uplatňuje se také při průchodu hlídkami, zkratkách a dalších situacích, kde rozhoduje rychlost.',
+ intelligence:'Inteligence zvyšuje získané zkušenosti a kapacitu magického štítu. Může odhalit význam zápisů, chyby v předpisech a neobvyklá řešení událostí.',
+ perception:'Všímavost pomáhá včas odhalit pasti, skryté střelce, iluze a hodnotnější části nálezů. Zvyšuje šanci na výhodný výsledek, ale nezaručuje jej.',
  damageMin:'Běžný útok náhodně vybere poškození mezi '+a.damageMin+' a '+a.damageMax+'. Síla zvyšuje dolní i horní hranici útoku; výsledné poškození se zaokrouhluje na celé body. Zbraň, relikvie a afixy se přičítají; zbroj protivníka a zvláštní účinky výsledek dále mění.',
  damageMax:'Horní hranice běžného útoku je '+a.damageMax+'. Přerušení bosse uspěje, pokud dosáhne alespoň 260 % jeho základního poškození. Krit se do tohoto testu nepočítá.',
- maxHp:'Maximum životů: '+a.maxHp+'. Každá úroveň přidá 5 životů. Odolnost přidá 7 za bod, další životy poskytují ochranné předměty a afixy. Při změně výbavy zůstává počet chybějících životů stejný. S plným zdravím tedy zůstaneš na maximu. Pokud by sundání snížilo životy na nulu, musíš se nejdřív ošetřit. Lektvar obnoví až 40 % maxima; opasek při smrtelném zásahu automaticky spotřebuje lektvar a vrátí 35 % maxima.',
+ maxHp:'Maximum životů: '+a.maxHp+'. Každá úroveň přidá 5 životů a každý bod odolnosti 3. Další životy poskytují ochranné předměty a afixy. Při změně výbavy zůstává počet chybějících životů stejný. S plným zdravím tedy zůstaneš na maximu.',
  armor:'Zbroj nyní sníží poškození o '+fmt(reduction)+' %. Platí zbroj ÷ (zbroj + 85), nejvýše 65 %. Nejdřív se odečte pohlcení, pak působí zbroj a nakonec ochranný štít.',
- crit:'Každý běžný útok má '+fmt(a.crit)+'% šanci na kritický zásah za 175 % poškození. Základ je 5 %, každých 5 bodů obratnosti přidává 6 procentních bodů. Taktický útok kriticky nezasahuje.',
- evasion:'Proti běžnému útoku máš '+fmt(a.evasion)+'% šanci úplně uhnout. Základ je 3 %, každých 5 bodů obratnosti přidává 4 procentní body. Od 12 % také vždy uspěje obranný manévr proti těžkému útoku bosse.',
+ crit:'Každý běžný útok má '+fmt(a.crit)+'% šanci na kritický zásah za 175 % poškození. Základ je 5 % a každý bod obratnosti přidává 0,35 procentního bodu. Taktický útok kriticky nezasahuje.',
+ evasion:'Proti běžnému útoku máš '+fmt(a.evasion)+'% šanci úplně uhnout. Základ je 3 % a každý bod obratnosti přidává 0,22 procentního bodu. Od 12 % také vždy uspěje obranný manévr proti těžkému útoku bosse.',
  block:'Po neúspěšném úhybu máš '+fmt(a.block)+'% šanci zablokovat běžný útok a snížit jej o 55 %. Každý předmět v levé ruce dává 12 procentních bodů bloku. Potom se uplatní pohlcení a zbroj.',
  thorns:'Vrátíš '+fmt(a.thorns)+' % skutečně ztracených životů jako poškození útočníkovi, zaokrouhlené na celé body. Úplný úhyb nebo plné pohlcení tedy trny nespustí.',
  absorb:'Z každého příchozího zásahu se odečte '+fmt(a.absorb)+' poškození před výpočtem zbroje. Může zásah zcela pohltit. Nejde o procenta ani o spotřebovatelný štít.',
  haste:'Čekání na tvůj běžný útok: '+game.attackDelay()+' ms při tempu 1×. Výpočet je 1050 ÷ (1 + rychlost / 100). Rychlost nemění počet tahů a sama nezabrání útěku krysy.',
- luck:'Štěstí je hodnota v bodech, nikoli přímá šance na nález. Každý bod zvyšuje základní šanci na předmět o 1 % relativně a přidá 2 % zlata z odměn. Nyní: běžný nepřítel '+fmt(game.dropChance()*100)+' %, silná hlídka '+fmt(game.dropChance(true)*100)+' %, ošoupaná truhla '+fmt(Math.min(100,65*(1+a.luck/100)))+' %, železná truhla '+fmt(Math.min(100,85*(1+a.luck/100)))+' %. Runová truhla a boss dávají předmět vždy. Štěstí také posouvá losování vzácnosti směrem k lepším kategoriím; nezaručuje konkrétní kvalitu.',
- gold:'Bonus k odměnám za boj, setkání a mince z truhel je '+fmt(a.gold)+' %. Odměny se zaokrouhlují. Základní odměna 100 zlata ti přinese '+Math.round(100*(1+a.gold/100))+'. Započítávají se afixy zlata i 2 % za každý výsledný bod štěstí. Prodejní ceny to nemění.',
- xpBonus:'Bonus ke zkušenostem z bojů je '+fmt(a.xpBonus)+' %. Inteligence přidává 5 % za bod. Například odměna 100 XP přinese '+Math.round(100*(1+a.xpBonus/100))+' XP. Každá úroveň přidá 5 životů a jeden bod výcviku.',
+ luck:'Štěstí ovlivňuje množství zlata, šanci na přímý nález, obsah truhel a losování vzácnosti. Nejde o jednu přímou procentní šanci a bossovu garantovanou kořist nenahrazuje.',
+ gold:'Bonus k odměnám za boj, setkání a mince z truhel je '+fmt(a.gold)+' %. Základní odměna 100 zlata ti přinese '+Math.round(100*(1+a.gold/100))+'. Každý výsledný bod štěstí přidává 0,75 %. Prodejní ceny to nemění.',
+ xpBonus:'Bonus ke zkušenostem z bojů je '+fmt(a.xpBonus)+' %. Každý bod inteligence přidává 1,25 %. Každá úroveň přidá 5 životů a 3 body k rozdělení.',
  leech:'Běžný zásah tě vyléčí o '+fmt(a.leech)+' % způsobeného poškození, při aktivním kradení nejméně o 1 život. Taktické přerušení a trny neléčí. Bez Amuletu nenasytnosti se přebytek nad maximum ztratí.',
- shieldCap:'Kapacita přebytečného léčení je '+a.shieldCap+'. Základ je 20 a inteligence přidává 3 za bod. Funguje pouze s nasazenou vlastností Amuletu nenasytnosti. Aktuální štít: '+(game.state.run?.shield||0)+'. Pohlcuje poškození po zbroji a končí s výpravou.'
+ shieldCap:'Kapacita přebytečného léčení je '+a.shieldCap+'. Základ je 20 a každý bod inteligence přidává 0,4. Funguje pouze s Amuletem nenasytnosti.'
  };
  return descriptions[key]||'';
 }
@@ -117,7 +122,7 @@ function lootCard(it,compact=false){
 }
 function genes(it){
  const p=game.basePower(it),slot=D.itemById[it.kind].slot,core=slot==='weapon'?'Poškození +'+Math.round(p*1.6)+' až +'+Math.round(p*2):['head','body','feet','hands','offhand'].includes(slot)?'Zbroj +'+fmt(p*1.6)+' · životy +'+fmt(p*3)+(slot==='offhand'?' · blok +12 %':''):'Poškození +'+Math.round(p*.3)+' až +'+Math.round(p*.5);
- return '<p class="item-base"><small>ZÁKLAD PŘEDMĚTU</small>'+core+'</p>'+(it.kind==='bow'?'<p>První běžný zásah v každém boji má o 30 % vyšší poškození.</p>':'')+'<ul class="genes">'+it.affixes.map(x=>'<li>'+btn(D.statNames[x.id]+' ⓘ','stat-help',x.id==='vitality'?'maxHp':x.id==='damage'?'damageMin':x.id,'stat-link')+'<b>+'+x.value+unit(x.id)+'</b></li>').join('')+'</ul><p class="muted">Bonusy platí jen při nasazení. Předmět v inventáři staty nemění.</p>'+(it.trait?'<div class="signature"><small>JEDINEČNÁ VLASTNOST</small><p>'+esc(D.traits[it.trait].effect)+'</p></div>':'');
+ return '<p class="item-base"><small>ZÁKLAD PŘEDMĚTU</small>'+core+'</p>'+(it.kind==='bow'?'<p>První běžný zásah v každém boji má o 30 % vyšší poškození.</p>':'')+'<ul class="genes">'+it.affixes.map(x=>'<li>'+btn(D.statNames[x.id]+' ⓘ',x.id==='allStats'?'all-stats-help':'stat-help',x.id==='vitality'?'maxHp':x.id==='damage'?'damageMin':x.id,'stat-link')+'<b>+'+x.value+unit(x.id)+'</b></li>').join('')+'</ul><p class="muted">Bonusy platí jen při nasazení. Předmět v inventáři staty nemění.</p>'+(it.trait?'<div class="signature"><small>JEDINEČNÁ VLASTNOST</small><p>'+esc(D.traits[it.trait].effect)+'</p></div>':'');
 }
 function compare(it){
  const slot=D.itemById[it.kind].slot,old=game.state.equipped[slot],before=game.stats(),after=game.stats({...game.state.equipped,[slot]:it});
@@ -192,18 +197,18 @@ function roadView(){
  '</footer></section>';
 }
 const growthDefs=[
- ['might','⚔','Síla','Posílí dolní i horní hranici útoku. Poškození se počítá v celých bodech.'],
- ['grit','♥','Odolnost','Za bod +7 životů. Každých 5 bodů přidá také 3 zbroje. Pomáhá přežít a podporuje obrannou výbavu.'],
- ['agility','〰','Obratnost','Každých 5 bodů přidá 6 procentních bodů kritu a 4 úhybu. Od 12 % úhybu zvládneš bossův úder obejít.'],
- ['intelligence','✶','Inteligence','Za bod +5 % získaných XP a +3 kapacity ochranného štítu z Amuletu nenasytnosti.'],
- ['luck','☘','Štěstí','Zvyšuje četnost i kvalitu nálezů. Každý bod výsledného štěstí přidá 2 % zlata z odměn.']
+ ['might','⚔','Síla','Posiluje útok, přerušení a fyzická řešení událostí. V příběhových zkouškách většinou zvyšuje šanci, nikoli jistotu.'],
+ ['grit','♥','Odolnost','Přidává životy a zbroj a omezuje zranění z pastí, námahy a nebezpečných cest.'],
+ ['agility','〰','Obratnost','Zvyšuje kritickou šanci, úhyb a úspěch při rychlých či přesných řešeních.'],
+ ['intelligence','✶','Inteligence','Zvyšuje zkušenosti a magický štít. Pomáhá chápat zápisy, kouzla a chyby v předpisech.'],
+ ['luck','☘','Štěstí','Ovlivňuje zlato, přímé nálezy, truhly a vzácnost kořisti. Výsledek zůstává náhodný.'],
+ ['perception','◉','Všímavost','Pomáhá odhalovat pasti, střelce, iluze, skryté cesty a hodnotnější části nálezů.']
 ];
 function characterView(){
  const s=game.state,a=game.stats(),breakdown=game.statBreakdown();
  let body='';
  if(characterPage==='attributes'){
-  body='<div class="attribute-grid">'+growthDefs.map(([id,,label])=>btn('<strong>'+label+'</strong><span>'+fmt(id==='luck'?a.luck:s.growth[id])+'</span>','help',id,'attribute-tile')).join('')+
-   btn('<strong>Výcvik</strong><span>'+s.points+'</span>','level-up','','attribute-tile training-tile')+'</div>';
+  body='<div class="attribute-grid">'+growthDefs.map(([id,,label])=>btn('<strong>'+label+'</strong><span>'+fmt(a[id])+'</span>','help',id,'attribute-tile')).join('')+'</div>';
  }else if(characterPage==='equipment'){
   body='<div class="equipment-grid">'+Object.entries(D.slots).map(([slot,label])=>{
    const it=s.equipped[slot];return '<button class="equipment" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'"><small>'+label+'</small>'+(it?itemArt(it.kind):'<span>＋</span>')+'<b>'+esc(it?name(it):'Prázdné místo')+'</b></button>';
@@ -218,12 +223,12 @@ function characterView(){
   '<div class="character-content">'+body+'</div></section>';
 }
 function levelUpView(){
- const s=game.state,n=s.levelNotice,locked=!!s.run?.battle;
- return '<div class="level-up-content"><small class="eyebrow">'+(n?'NOVÁ ÚROVEŇ':'VÝCVIK')+'</small><h2 id="dialog-title">'+(n?'Úroveň '+n.from+' → '+n.to:'Rozděl body')+'</h2>'+
-  (n?'<div class="level-rewards"><span><b>+'+n.hp+'</b> max. životů</span><span><b>+'+n.points+'</b> bodů výcviku</span></div>':'')+
+ const s=game.state,n=s.levelNotice,locked=!!s.run?.battle,attrs=game.attributes();
+ return '<div class="level-up-content"><small class="eyebrow">'+(n?.initial?'ZAČÁTEČNÍ VÝCVIK':n?'NOVÁ ÚROVEŇ':'VÝCVIK')+'</small><h2 id="dialog-title">'+(n?.initial?'Rozděl prvních 30 bodů':n?'Úroveň '+n.from+' → '+n.to:'Rozděl body')+'</h2>'+
+  (n?.initial?'<p>Rozdělení určí bojové parametry i pravděpodobnosti a možnosti během výprav.</p>':n?'<div class="level-rewards"><span><b>+'+n.hp+'</b> max. životů</span><span><b>+'+n.points+'</b> body k rozdělení</span></div>':'')+
   '<p class="training-balance">Zbývá rozdělit: <b>'+s.points+'</b></p>'+
-  '<div class="training-list">'+growthDefs.map(([id,,label])=>'<div><strong>'+label+'</strong><b>'+s.growth[id]+'</b>'+btn('+','growth',id,'add-point',!s.points||locked)+'</div>').join('')+'</div>'+
-  '<p class="training-help">'+(locked?'Body rozdělíš po souboji. Postup i odměny už máš uložené.':'Síla posílí útok, odolnost životy a zbroj. Obratnost pomáhá úhybu a kritu, inteligence zkušenostem, štěstí kořisti.')+'</p>'+
+  '<div class="training-list">'+growthDefs.map(([id,,label])=>'<div><strong>'+label+(attrs.bonus[id]?'<small>výbava +'+attrs.bonus[id]+'</small>':'')+'</strong><b>'+s.growth[id]+'</b>'+btn('+','growth',id,'add-point',!s.points||locked||s.growth[id]>=100)+'</div>').join('')+'</div>'+
+  '<p class="training-help">'+(locked?'Body rozdělíš po souboji. Postup i odměny už máš uložené.':'Každý atribut může mít nejvýše 100 rozdělených bodů. Výbava se přičítá zvlášť. Každá oblast má vlastní práh náročnosti; další lokality a vyšší hrozba jsou výrazně přísnější.')+'</p>'+
   btn(s.points?'Rozdělit později':'Hotovo','close','','primary wide')+'</div>';
 }
 function equippedGrid(compact=false){
@@ -302,8 +307,10 @@ function renderDialog(){
   const gold=dialog.id==='gold';body='<h2 id="dialog-title">'+(gold?'Zlato':'Esence')+'</h2><p class="currency-total">'+(gold?s.gold:s.essence)+'</p><p>'+(gold?'Za zlato nakupuješ výbavu a lektvary. Získáváš ho bojem, některými rozhodnutími, z truhel a prodejem předmětů. Štěstí zvyšuje odměny, ne prodejní ceny.':'Esence slouží ke slučování a výrobě jedinečných předmětů. Získáváš ji za boj, rozkladem výbavy a z truhel bez předmětu. Zlato ji nenahrazuje.')+'</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='journal'){
   body='<h2 id="dialog-title">Kronika</h2><ol class="journal">'+s.journal.slice().reverse().map(x=>'<li>'+esc(x.replace(/(?:Sir )?Šmik/g,()=>s.heroName))+'</li>').join('')+'</ol>'+btn('Zavřít','close','','text-button wide');
+ }else if(dialog?.type==='all-stats'){
+  body='<h2 id="dialog-title">Všechny atributy</h2><p>Tento bonus přidává uvedenou hodnotu k Síle, Odolnosti, Obratnosti, Inteligenci, Štěstí i Všímavosti. Nezvyšuje počet rozdělených bodů a platí pouze při nasazení předmětu.</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='help'){
-  const def=growthDefs.find(x=>x[0]===dialog.id),links={might:['damageMin','damageMax'],grit:['maxHp','armor'],agility:['crit','evasion'],intelligence:['xpBonus','shieldCap'],luck:['luck','gold']}[dialog.id];body='<h2 id="dialog-title">'+def[2]+'</h2><p>'+def[3]+'</p><p>Rozdělené body: '+s.growth[dialog.id]+'. '+(dialog.id==='luck'?'Výbava se přičítá k výslednému štěstí.':'Výbava teď posiluje výsledné parametry přímo, nikoli tento základní atribut.')+'</p>'+links.map(k=>btn(statRows.find(x=>x[0]===k)[1]+' ⓘ '+statFormula(k),'stat-help',k,'secondary wide')).join('')+btn('Rozumím','close','','primary wide');
+  const def=growthDefs.find(x=>x[0]===dialog.id),attrs=game.attributes(),target=game.attributeTarget(),links={might:['damageMin','damageMax'],grit:['maxHp','armor'],agility:['crit','evasion'],intelligence:['xpBonus','shieldCap'],luck:['gold'],perception:[]}[dialog.id];body='<h2 id="dialog-title">'+def[2]+'</h2><p>'+def[3]+'</p><p>Rozděleno: '+attrs.base[dialog.id]+' · výbava: +'+attrs.bonus[dialog.id]+' · celkem: <b>'+attrs.total[dialog.id]+'</b>. Osobní investice může dosáhnout nejvýše 100 bodů; bonusy z výbavy se přičítají zvlášť.</p><p class="muted">Orientační práh vybrané oblasti: <b>'+target+'</b>. Některé zkoušky mohou být ještě náročnější. Překročení prahu výrazně pomáhá, ale nic nezaručuje.</p>'+links.map(k=>btn(statRows.find(x=>x[0]===k)[1]+' ⓘ '+statFormula(k),'stat-help',k,'secondary wide')).join('')+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='stat'){
   const key=dialog.id,b=game.statBreakdown(),cap=D.statCaps[key];
   const sources=Object.values(s.equipped).filter(Boolean).map(it=>({it,amount:game.stats({[D.itemById[it.kind].slot]:it})[key]-b.base[key]})).filter(x=>Math.abs(x.amount)>.001);
@@ -370,6 +377,7 @@ function dispatch(action,value){
   case 'sound-preview':sound(['block','blade','blunt','arrow','shield','heal'].includes(value)?value:'block');break;
   case 'growth':result=game.spend(value);break;
   case 'help':dialog={type:'help',id:value};break;
+  case 'all-stats-help':dialog={type:'all-stats'};break;
   case 'stat-help':if(statRows.some(x=>x[0]===value))dialog={type:'stat',id:value,back:dialog};break;
   case 'journal':dialog={type:'journal'};break;
   case 'equipped':if(s.equipped[value])dialog={type:'item',slot:value};else toast('Tento slot čeká na nález.');break;

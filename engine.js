@@ -22,7 +22,7 @@ class Game {
  pick(list){return list[Math.min(list.length-1,Math.floor(this.random()*list.length))];}
  weighted(weights){let n=this.random()*weights.reduce((a,b)=>a+b,0);for(let i=0;i<weights.length;i++){n-=weights[i];if(n<0)return i;}return weights.length-1;}
  item(kind,rarity='common',ilvl=1,genes=null) {
-  const tier=D.rarityIndex(rarity),n=this.weighted(odds[Math.max(0,tier)])+1,pool=[...D.affixDefinitions];
+  const tier=D.rarityIndex(rarity),n=this.weighted(odds[Math.max(0,tier)])+1,pool=D.affixDefinitions.filter(x=>x.id!=='allStats'||tier>=4);
   const affixes=genes?genes.map(([id,value])=>({id,value})):Array.from({length:n},()=>{
    const def=pool.splice(Math.floor(this.random()*pool.length),1)[0];
    return {id:def.id,value:Math.max(1,Math.round((def.base+Math.max(0,tier-1)*def.step+ilvl*.25)*(.8+this.random()*.45)))};
@@ -35,8 +35,8 @@ class Game {
   equipped.weapon=this.item('dagger','common',1,[['damage',2]]);
   equipped.body=this.item('cloak','common',1,[['vitality',8]]);
   equipped.feet=this.item('boots','common',1,[['evasion',3]]);
-  return {version:4,heroName:'',level:1,xp:0,points:0,levelNotice:null,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
-   gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:20,pending:[],notice:null,
+  return {version:4,heroName:'',level:1,xp:0,points:30,levelNotice:{from:1,to:1,hp:0,points:30,initial:true},growth:{might:0,grit:0,agility:0,intelligence:0,luck:0,perception:0},
+   gold:35,essence:12,potions:3,hp:119,equipped,inventory:[],capacity:20,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
    unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1},lastReport:null,
    storyEvents:[],metrics:{choices:0,merges:0,runs:0,bosses:0}};
@@ -45,8 +45,8 @@ class Game {
   this.setHeroName(raw.heroName);
   const s=this.state,g=raw.growth||{};
   s.level=Math.max(1,integer(raw.level,1));s.xp=integer(raw.xp);s.points=integer(raw.points??raw.statPoints);
-  if(raw.levelNotice&&integer(raw.levelNotice.to)===s.level)s.levelNotice={from:Math.max(1,integer(raw.levelNotice.from,1)),to:s.level,hp:integer(raw.levelNotice.hp),points:integer(raw.levelNotice.points)};
-  s.growth={might:integer(g.might),grit:integer(g.grit),agility:integer(g.agility??g.guile),intelligence:integer(g.intelligence??g.learning),luck:integer(g.luck)};
+  s.levelNotice=null;if(raw.levelNotice&&integer(raw.levelNotice.to)===s.level){s.levelNotice={from:Math.max(1,integer(raw.levelNotice.from,1)),to:s.level,hp:integer(raw.levelNotice.hp),points:integer(raw.levelNotice.points)};if(raw.levelNotice.initial===true)s.levelNotice.initial=true;}
+  s.growth={might:clamp(integer(g.might),0,100),grit:clamp(integer(g.grit),0,100),agility:clamp(integer(g.agility??g.guile),0,100),intelligence:clamp(integer(g.intelligence??g.learning),0,100),luck:clamp(integer(g.luck),0,100),perception:clamp(integer(g.perception),0,100)};
   s.gold=integer(raw.gold);s.essence=integer(raw.essence);s.potions=integer(raw.potions);
   const sanitize=item=>{
    if(!item||!D.itemById[item.kind])return null;
@@ -107,10 +107,19 @@ class Game {
   const d=D.itemById[item.kind];
   return Math.max(item.basePower||0,d.bonus*D.rarityById[item.rarity].multiplier*(1+(item.rank-1)*.25)*(1+(item.ilvl-1)*.16));
  }
+ attributes(equipped=this.state.equipped){
+  const ids=['might','grit','agility','intelligence','luck','perception'],base=Object.fromEntries(ids.map(id=>[id,this.state.growth[id]||0])),bonus=Object.fromEntries(ids.map(id=>[id,0]));
+  for(const it of Object.values(equipped||{}).filter(Boolean))for(const affix of it.affixes||[]){
+   if(ids.includes(affix.id))bonus[affix.id]+=affix.value;
+   else if(affix.id==='allStats')for(const id of ids)bonus[id]+=affix.value;
+  }
+  return {base,bonus,total:Object.fromEntries(ids.map(id=>[id,base[id]+bonus[id]]))};
+ }
  stats(equipped=this.state.equipped,uncapped=false){
-  const g=this.state.growth,a={damageMin:7+g.might*1.2,damageMax:11+g.might*1.8,maxHp:120+(this.state.level-1)*5+g.grit*7,armor:g.grit*.6,
-   crit:5+g.agility*1.2,evasion:3+g.agility*.8,leech:0,thorns:0,absorb:0,haste:0,luck:g.luck,
-   gold:0,block:0,traits:[],xpBonus:g.intelligence*5,shieldCap:20+g.intelligence*3};
+  const g=this.attributes(equipped).total,a={might:g.might,grit:g.grit,agility:g.agility,intelligence:g.intelligence,luck:g.luck,perception:g.perception,
+   damageMin:5+g.might*.45,damageMax:7+g.might*.7,maxHp:105+(this.state.level-1)*5+g.grit*3,armor:g.grit*.25,
+   crit:3.25+g.agility*.35,evasion:1.9+g.agility*.22,leech:0,thorns:0,absorb:0,haste:0,
+   gold:g.luck*.75,block:0,traits:[],xpBonus:g.intelligence*1.25,shieldCap:20+g.intelligence*.4};
   for(const it of Object.values(equipped).filter(Boolean)){
    const slot=D.itemById[it.kind].slot,p=this.basePower(it);
    if(slot==='weapon'){a.damageMin+=Math.round(p*1.6);a.damageMax+=Math.round(p*2);}
@@ -120,12 +129,11 @@ class Game {
    for(const x of it.affixes){
     if(x.id==='damage'){a.damageMin+=x.value;a.damageMax+=x.value;}
     else if(x.id==='vitality')a.maxHp+=x.value;
-    else if(x.id in a && typeof a[x.id]==='number')a[x.id]+=x.value;
+    else if(!['might','grit','agility','intelligence','luck','perception','allStats'].includes(x.id)&&x.id in a&&typeof a[x.id]==='number')a[x.id]+=x.value;
    }
   }
   if(!uncapped)for(const [k,max] of Object.entries(D.statCaps))a[k]=clamp(a[k],0,max);
-  a.gold+=a.luck*2;
-  for(const k of ['damageMin','damageMax','maxHp','armor'])a[k]=Math.round(a[k]);
+  for(const k of ['might','grit','agility','intelligence','luck','perception','damageMin','damageMax','maxHp','armor'])a[k]=Math.round(a[k]);
   return a;
  }
  statBreakdown(){
@@ -134,18 +142,18 @@ class Game {
   return {base,total,bonus,raw};
  }
  attackDelay(){return Math.round(1050/(1+this.stats().haste/100));}
- threshold(){return 38+this.state.level*22;}
+ threshold(level=this.state.level){const n=Math.max(0,level-1);return Math.round(70+38*n+7*n*n);}
  xp(amount){
   const s=this.state,from=s.level;let added=0;
   s.xp+=Math.round(amount*(1+this.stats().xpBonus/100));
-  while(s.xp>=this.threshold()){s.xp-=this.threshold();s.level++;s.points++;added++;}
+  while(s.xp>=this.threshold()){s.xp-=this.threshold();s.level++;s.points+=3;added++;}
   if(added){
    s.hp=Math.min(this.stats().maxHp,s.hp+added*5);
-   s.levelNotice={from:s.levelNotice?.from??from,to:s.level,hp:(s.levelNotice?.hp||0)+added*5,points:(s.levelNotice?.points||0)+added};
-   this.jot('Úroveň '+s.level+' · +'+added*5+' životů · body výcviku: '+added+'.');
+   s.levelNotice={from:s.levelNotice?.initial?from:s.levelNotice?.from??from,to:s.level,hp:(s.levelNotice?.initial?0:s.levelNotice?.hp||0)+added*5,points:(s.levelNotice?.initial?0:s.levelNotice?.points||0)+added*3};
+   this.jot('Úroveň '+s.level+' · +'+added*5+' životů · body výcviku: '+added*3+'.');
   }
  }
- spend(stat){const s=this.state;if(!Object.hasOwn(s.growth,stat)||s.points<1||s.run?.battle)return false;const max=this.stats().maxHp;s.growth[stat]++;s.points--;s.hp+=this.stats().maxHp-max;return true;}
+ spend(stat){const s=this.state;if(!Object.hasOwn(s.growth,stat)||s.points<1||s.growth[stat]>=100||s.run?.battle)return false;const max=this.stats().maxHp;s.growth[stat]++;s.points--;s.hp+=this.stats().maxHp-max;return true;}
  jot(text){this.state.journal.push(text);this.state.journal=this.state.journal.slice(-60);}
  introduceChapter(){
   const s=this.state;if(!D.chapter||s.flags.chapterIntroSeen||s.storyEvents.some(x=>x.id==='intro'))return;
@@ -191,7 +199,13 @@ class Game {
   if(source==='boss'&&this.random()<.10)return this.signature(p.recipe,ilvl);
   return this.item(this.pick(catalog).id,this.rarity(source,area,challenge),ilvl);
  }
- dropChance(elite=false){return Math.min(.32,(elite?.16:.065)*(1+this.stats().luck/100));}
+ dropChance(elite=false){return Math.min(.32,(elite?.16:.065)*(1+this.stats().luck/150));}
+ attributeTarget(offset=0,area=this.state.run?.area??this.state.selectedArea,challenge=this.state.run?.challenge??this.state.selectedChallenge){
+  return [8,16,25,35,46,58][area]+Math.max(0,challenge||0)*7+offset;
+ }
+ attributeMargin(stat,offset=0){return (this.stats()[stat]||0)-this.attributeTarget(offset);}
+ attributeChance(stat,offset=0){const d=this.attributeMargin(stat,offset);return d>=15?.88:d>=5?.72:d>=0?.55:d>=-8?.28:.08;}
+ attributeMitigation(stat,offset=0){const d=this.attributeMargin(stat,offset);return d>=15?5:d>=0?2:0;}
  price(item){return Math.round((8+this.basePower(item)*3+item.affixes.reduce((n,x)=>n+x.value*.5,0))*(1+D.rarityIndex(item.rarity)*.3));}
  room(){
   const r=this.state.run;if(!r)return null;
@@ -325,21 +339,24 @@ class Game {
    case 'hunt':
     if(left){this.fight('thief');return true;}return finish('Zloděj zmizel i s kořistí. Uchoval sis síly pro další cestu.');
    case 'ambush':
-    this.fight('hunter');if(!left){r.battle.damage=Math.max(1,r.battle.damage-2);r.battle.hp=Math.round(r.battle.hp*1.15);r.battle.maxHp=r.battle.hp;r.battle.covered=true;r.battle.hpBonus=Math.round(((1+r.battle.hpBonus/100)*1.15-1)*100);this.log('Lovec tě sleduje přes hranu krytu a pevně sevře kuši.','story');}return true;
+    this.fight('hunter');if(!left){r.battle.damage=Math.max(1,r.battle.damage-2);r.battle.hp=Math.round(r.battle.hp*1.15);r.battle.maxHp=r.battle.hp;r.battle.covered=true;r.battle.hpBonus=Math.round(((1+r.battle.hpBonus/100)*1.15-1)*100);this.log('Lovec tě sleduje přes hranu krytu a pevně sevře kuši.','story');}
+    else if(roll()<this.attributeChance('perception',2)){const seen=Math.max(2,Math.round(r.battle.maxHp*.15));r.battle.hp-=seen;this.log('Všímavost překonala náročnost místa a odhalila střelce dřív. První zásah mu vzal '+seen+' životů.','proc');}return true;
    case 'toll':
     if(left&&s.gold>=9){s.gold-=9;return finish('Zaplatil jsi 9 zlata. Hlídka tě pustila bez boje.');}this.fight('guard',false,left?'Na poplatek nemáš. Hlídka tasí zbraně.':'Odmítl jsi zaplatit. Strážný tasí zbraň.');return true;
    case 'hazard':{
-    const cost=left?3:roll()<Math.min(.85,.42+a.evasion/100)?0:10+Math.floor(roll()*9);
-    return finish(cost?'Překážka je za tebou. Ztratil jsi '+wound(cost)+' životů.':'Zkratka vyšla bez zranění.');
+    const spotted=roll()<this.attributeChance('perception'),safeCost=Math.max(0,3-this.attributeMitigation('grit'));
+    const agile=(this.attributeChance('agility',2)+this.attributeChance('perception',3))/2;
+    const cost=left?(spotted?0:safeCost):roll()<agile?0:Math.max(3,10+Math.floor(roll()*9)-this.attributeMitigation('grit')*2);
+    return finish(cost?'Překážka je za tebou. Ztratil jsi '+wound(cost)+' životů.':spotted?'Všímavost odhalila nebezpečný bod. Prošel jsi bez zranění.':'Zkratka vyšla bez zranění.');
    }
-   case 'salvage':if(left){const cost=wound(6);s.essence+=2;return finish('Vyprostil jsi 2 esence. Ostré hrany tě stály '+cost+' životů.');}return finish('Materiál zůstal na místě. Pokračuješ bez zranění.');
+   case 'salvage':if(left){const cost=wound(Math.max(1,6-this.attributeMitigation('grit'))),bonus=roll()<this.attributeChance('might',2)?1:0;s.essence+=2+bonus;return finish('Vyprostil jsi '+(2+bonus)+' esence. Ostré hrany tě stály '+cost+' životů.'+(bonus?' Síla obstála proti náročnosti místa a uvolnila i hlubší úlomek.':''));}return finish('Materiál zůstal na místě. Pokračuješ bez zranění.');
    case 'chest':
-    if(left){const cost=wound(4);if(roll()<.45){this.chest(0,'Nález: '+event.title);return finish('Za cenu '+cost+' životů jsi uvolnil schránku. Teď ji můžeš otevřít.');}const gold=this.gold(5);return finish('Schránka byla vybraná. Zbylo '+gold+' zlata; ostrý okraj tě stál '+cost+' životů.');}
+    if(left){const cost=wound(Math.max(0,4-this.attributeMitigation('grit'))),findChance=.2+.55*(this.attributeChance('luck',2)+this.attributeChance('perception'))/2;if(roll()<findChance){this.chest(0,'Nález: '+event.title);return finish('Za cenu '+cost+' životů jsi uvolnil schránku. Teď ji můžeš otevřít.');}const gold=this.gold(5);return finish('Schránka byla vybraná. Zbylo '+gold+' zlata; ostrý okraj tě stál '+cost+' životů.');}
     return finish('Sebral jsi '+this.gold(4)+' zlata. Schránka zůstala zavřená.');
    case 'respite':if(left){this.heal(10+Math.floor(roll()*9));this.cue('potion');return finish('Klid a obvazy obnovily '+(s.hp-before)+' životů.');}s.essence++;return finish('Při hledání jsi našel 1 esenci. Čas na ošetření už nezbyl.');
    case 'aid':
     if(left&&s.gold>=8){s.gold-=8;f.favors=(f.favors||0)+1;return finish('Předal jsi 8 zlata. Zpráva o tvé pomoci putuje k zásobovacímu stanovišti dál na cestě.');}return finish(left?'Na pomoc ti chybí mince. Rozloučili jste se bez výměny.':'Rozloučil ses a pokračuješ. Zásobovači o tobě žádnou zprávu nedostanou.');
-   case 'shrine':if(left){this.heal(8);return finish('Čistá voda a obvaz obnovily '+(s.hp-before)+' životů.');}this.xp(4);r.xp+=Math.round(4*(1+a.xpBonus/100));return finish('Zápis tě naučil něco o zdejších nástrahách. Získal jsi '+Math.round(4*(1+a.xpBonus/100))+' XP.');
+   case 'shrine':if(left){this.heal(8);return finish('Čistá voda a obvaz obnovily '+(s.hp-before)+' životů.');}{const learned=4+(roll()<this.attributeChance('intelligence')?3:0);this.xp(learned);r.xp+=Math.round(learned*(1+a.xpBonus/100));return finish('Zápis tě naučil něco o zdejších nástrahách. Získal jsi '+Math.round(learned*(1+a.xpBonus/100))+' XP.');}
    case 'trade':if(left&&s.gold>=18){s.gold-=18;s.potions++;return finish('Za 18 zlata přibyl jeden lektvar do opasku.');}f.informed=true;return finish((left?'Na lektvar nemáš, ale rada je zdarma. ':'')+'Kupec ti načrtl cestu a označil několik bočních průchodů. Kresbu si zapamatuješ.');
    case 'tracks':if(left){this.fight('guard',true);r.battle.carriesChest=true;return true;}return finish('Ozbrojenec odnesl náklad. Ty pokračuješ za cílem výpravy.');
    case 'omen':if(left&&s.gold>=6){s.gold-=6;r.shield=Math.min(a.shieldCap,r.shield+12);return finish('Mince zapadly do drážek. Kruh se rozsvítil a na okamžik tě obklopilo chladné světlo.');}if(left)return finish('Nemáš šest zlatých. Ochrana zůstala neaktivní.');f.hunted=true;return finish('Vzal jsi '+this.gold(7)+' zlata. Pečeť zhasla. Tenký tón se nese chodbou a pomalu utichá.');

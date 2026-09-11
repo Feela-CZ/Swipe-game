@@ -41,6 +41,11 @@ test('48 legacy item kinds populate eight equipment slots',()=>{
  for(const d of D.itemKinds)assert.ok(D.slots[d.slot]);
  assert.equal(Object.keys(fresh().state.equipped).length,8);
 });
+test('new heroes receive thirty points and assigned attributes stop at one hundred',()=>{
+ const g=fresh();assert.equal(g.state.points,30);assert.equal(Object.keys(g.state.growth).length,6);assert.ok(g.state.levelNotice.initial);
+ g.state.points=130;for(let i=0;i<130;i++)g.spend('perception');assert.equal(g.state.growth.perception,100);assert.equal(g.state.points,30);assert.equal(g.spend('perception'),false);
+ assert.deepEqual([1,2,5,10,20].map(level=>g.threshold(level)),[70,115,334,979,3319]);
+});
 test('damage genes affect actual attacks and haste affects player timing',()=>{
  const g=fresh();g.state.equipped={weapon:g.item('sword','common',1,[['damage',1]])};
  const min=g.stats().damageMin;g.state.equipped.weapon.affixes[0].value=11;assert.equal(g.stats().damageMin,min+10);
@@ -159,7 +164,7 @@ test('boss scripts remain binary, pause clocks, then resolve in every area',()=>
 test('region bosses use distinct mechanics affected by preparation',()=>{
  const bell=fresh();bell.start();bell.fight('boss',true);bell.state.run.battle.turn='enemy';bell.random=()=>.99;bell.enemy();assert.ok(bell.state.run.battle.log.some(x=>x.text.includes('Posílený útok')));
  const roots=fresh();roots.state.unlocked=2;roots.start(1);roots.fight('boss',true);roots.state.run.battle.hp-=20;roots.state.run.battle.round=2;roots.random=()=>.99;roots.enemy();assert.ok(roots.state.run.battle.log.some(x=>x.text.includes('Kořeny vrátily')));
- const shell=fresh();shell.state.unlocked=3;shell.state.growth.might=30;shell.start(2);shell.fight('boss',true);shell.step();shell.tactic('right');assert.ok(shell.state.run.battle.shellBroken);
+ const shell=fresh();shell.state.unlocked=3;shell.state.growth.might=100;shell.start(2);shell.fight('boss',true);shell.step();shell.tactic('right');assert.ok(shell.state.run.battle.shellBroken);
  const echo=fresh();echo.state.unlocked=4;echo.start(3);echo.fight('boss',true);echo.state.run.battle.lastHit=40;echo.state.run.battle.round=2;echo.state.run.battle.turn='enemy';echo.random=()=>.99;echo.enemy();assert.ok(echo.state.run.battle.log.some(x=>x.text.includes('Ozvěna posledního úderu')));
 });
 test('preview-only loot cannot duplicate a merged item',()=>{
@@ -182,17 +187,36 @@ test('luck equipment is inactive in inventory and contributes to total, drops an
  const g=fresh();g.state.growth.luck=2;
  const ring=g.item('ring','uncommon',1,[['luck',3]]);g.state.inventory.push(ring);
  assert.equal(g.stats().luck,2);const prior=g.dropChance();g.equip(ring.id);
- const b=g.statBreakdown();assert.equal(b.base.luck,2);assert.equal(b.bonus.luck,3);assert.equal(b.total.luck,5);assert.equal(b.total.gold,10);assert.ok(g.dropChance()>prior);
- const saved=new Game(plain(g.state));assert.equal(saved.stats().luck,5);assert.equal(saved.stats().gold,10);
- assert.equal(g.gold(100),110);g.unequip('ring');assert.equal(g.stats().luck,2);
+ const b=g.statBreakdown();assert.equal(b.base.luck,2);assert.equal(b.bonus.luck,3);assert.equal(b.total.luck,5);assert.equal(b.total.gold,3.75);assert.ok(g.dropChance()>prior);
+ const saved=new Game(plain(g.state));assert.equal(saved.stats().luck,5);assert.equal(saved.stats().gold,3.75);
+ assert.equal(g.gold(100),104);g.unequip('ring');assert.equal(g.stats().luck,2);
 });
 test('all displayed breakdowns reconcile, including stacking, rounding and caps',()=>{
  const g=fresh();g.state.growth.luck=58;
  g.state.equipped.ring=g.item('ring','rare',4,[['luck',7],['crit',99],['absorb',50]]);
  g.state.equipped.relic=g.item('amulet','rare',4,[['luck',9],['gold',8],['haste',99]]);
- const b=g.statBreakdown();assert.equal(b.raw.luck,74);assert.equal(b.total.luck,60);assert.equal(b.bonus.luck,2);assert.equal(b.total.gold,128);
+ const b=g.statBreakdown();assert.equal(b.raw.luck,74);assert.equal(b.total.luck,74);assert.equal(b.bonus.luck,16);assert.equal(b.total.gold,63.5);
  for(const key of Object.keys(b.bonus))assert.ok(Math.abs(b.base[key]+b.bonus[key]-b.total[key])<.00001,key);
  assert.equal(b.total.crit,65);assert.equal(b.total.absorb,40);assert.equal(b.total.haste,65);
+});
+test('equipment can grant individual or all six primary attributes',()=>{
+ const g=fresh();g.state.growth={might:1,grit:2,agility:3,intelligence:4,luck:5,perception:6};
+ g.state.equipped.ring=g.item('ring','legendary',5,[['allStats',4],['perception',3]]);const a=g.attributes();
+ assert.deepEqual(plain(a.total),{might:5,grit:6,agility:7,intelligence:8,luck:9,perception:13});assert.equal(g.stats().perception,13);
+});
+test('attributes influence probabilistic expedition checks without guaranteeing all outcomes',()=>{
+ const g=fresh();g.state.growth.perception=100;g.state.growth.grit=70;g.start();g.state.run.rooms=['event-hazard-0','boss'];g.random=()=>0;
+ const hp=g.state.hp;g.choose('left');assert.equal(g.state.hp,hp);assert.match(g.state.notice.text,/Všímavost/);
+ const h=fresh();h.state.growth.might=100;h.start();h.state.run.rooms=['event-salvage-0','boss'];h.random=()=>0;h.choose('left');assert.match(h.state.notice.text,/3 esence/);
+});
+test('attribute thresholds scale sharply beyond the introductory tower',()=>{
+ const g=fresh();
+ assert.equal(g.attributeTarget(),8);assert.equal(g.attributeChance('might'),.28);
+ g.state.growth.might=8;assert.equal(g.attributeChance('might'),.55);
+ g.state.selectedArea=5;assert.equal(g.attributeTarget(),58);assert.equal(g.attributeChance('might'),.08);
+ g.state.selectedChallenge=2;assert.equal(g.attributeTarget(),72);
+ g.state.growth.might=77;assert.equal(g.attributeChance('might'),.72);
+ g.state.growth.might=87;assert.equal(g.attributeChance('might'),.88);
 });
 test('forest choice really disables roots and regional scenes do not reuse tower interiors',()=>{
  const g=fresh();g.state.unlocked=D.areas.length;g.start(1);g.state.run.rooms=['fork','boss'];
@@ -224,11 +248,11 @@ test('all 48 item kinds have unique atlas cells',()=>{
  assert.equal(new Set(Object.values(D.itemArt)).size,48);for(const d of D.itemKinds)assert.ok(Number.isInteger(D.itemArt[d.id]));
 });
 test('level rewards aggregate, survive reload, and never duplicate',()=>{
- const g=fresh(),hp=g.stats().maxHp,current=g.state.hp;g.xp(142);
- assert.equal(g.state.level,3);assert.equal(g.state.points,2);assert.equal(g.stats().maxHp,hp+10);assert.equal(g.state.hp,current+10);
- assert.deepEqual(plain(g.state.levelNotice),{from:1,to:3,hp:10,points:2});
+ const g=fresh(),hp=g.stats().maxHp,current=g.state.hp;g.xp(185);
+ assert.equal(g.state.level,3);assert.equal(g.state.points,36);assert.equal(g.stats().maxHp,hp+10);assert.equal(g.state.hp,current+10);
+ assert.deepEqual(plain(g.state.levelNotice),{from:1,to:3,hp:10,points:6});
  const loaded=new Game(plain(g.state));assert.equal(loaded.stats().maxHp,g.stats().maxHp);assert.equal(loaded.state.hp,g.state.hp);assert.deepEqual(plain(loaded.state.levelNotice),plain(g.state.levelNotice));
- loaded.spend('grit');assert.equal(loaded.stats().maxHp,hp+17);assert.equal(loaded.state.points,1);
+ loaded.spend('grit');assert.equal(loaded.stats().maxHp,hp+13);assert.equal(loaded.state.points,35);
  loaded.state.levelNotice=null;assert.equal(new Game(plain(loaded.state)).state.levelNotice,null);
 });
 test('consequence prose hides future rules, combat badges reflect active arithmetic',()=>{

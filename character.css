@@ -33,6 +33,7 @@
 .level-rewards span{padding:8px;background:#314537;border:1px solid #64754b;border-radius:9px;font-size:.875rem}.level-rewards b{display:block;font:1.5rem Georgia,serif;color:var(--gold)}
 .dialog-card .training-balance{margin:10px 0;font-size:1rem}.training-list{display:grid;gap:5px}.training-list>div{display:grid;grid-template-columns:1fr 38px 44px;gap:8px;align-items:center;min-height:44px;border-bottom:1px solid var(--line)}
 .training-list strong{font-size:1rem}.training-list>div>b{text-align:center;color:var(--gold)}.training-list .add-point{width:44px;height:44px}
+.training-list strong small{display:block;color:var(--mint);font-size:.7rem;font-weight:500}
 .dialog-card .training-help{font-size:.875rem;line-height:1.35;margin:10px 0}.level-up-content>.wide{min-height:44px;margin-top:4px}
 .battle-bonuses{position:absolute;left:5px;right:5px;top:5px;z-index:3;display:flex;justify-content:space-between;gap:12px;pointer-events:none}
 .battle-bonuses>div{display:flex;flex-direction:column;align-items:flex-start;gap:3px;max-width:49%}.battle-bonuses .enemy-bonuses{align-items:flex-end}

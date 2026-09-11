@@ -43,6 +43,7 @@ export function decision(g,reckless=false){
 }
 export function simulate(seed,{tired=false,reckless=false,gear=false}={}){
  const g=make(seed);if(gear){g.state.equipped.weapon=g.item('sword','uncommon',1,[['damage',3]]);g.state.equipped.offhand=g.item('shield','common',1,[['armor',2]]);}
+ for(let round=0;round<5;round++)for(const stat of ['might','grit','agility','intelligence','luck','perception'])g.spend(stat);
  g.rest();if(tired)g.state.hp=Math.round(g.stats().maxHp*.5);g.start();let steps=0,combats=0,loot=0,last=0;
  while(g.state.run&&steps++<4000){
   while(g.state.pending.length){if(g.state.pending[0].type==='chest')g.openChest();else{loot++;g.loot('take');}}

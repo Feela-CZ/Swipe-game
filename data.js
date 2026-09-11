@@ -7,7 +7,7 @@ const itemKinds=[
 ...catalog('relic',[['egg','Vejce starší než vina','🥚',2],['coin','Prokletý drobný','🪙',2],['goblet','Pohár za účast','🏆',3],['whistle','Píšťalka na draky','📯',3],['orb','Koule zákaznické podpory','🔮',4],['ring','Prsten s příliš mnoha klíči','💍',3],['amulet','Amulet ztraceného signálu','📿',3],['book','Kniha nesprávných odpovědí','📕',4],['skull','Lebka bývalého poradce','💀',4],['teapot','Čajník bezedné odvahy','🫖',3],['hourglass','Přesýpací hodiny bez pátečního odpoledne','⏳',4],['candle','Svíce proti manažerům','🕯️',3],['key','Klíč od vedlejšího questu','🗝️',3],['cheese','Sýr strategického významu','🧀',2],['mirror','Zrcadlo hrdinského filtrování','🪞',4],['sock','Svatá levá ponožka','🧦',3]])
 ];
 const rarities=[{id:'common',label:'Common',short:'C',multiplier:1,color:'#cbd5d5'},{id:'uncommon',label:'Uncommon',short:'U',multiplier:1.2,color:'#70e59a'},{id:'rare',label:'Rare',short:'R',multiplier:1.5,color:'#73a9ff'},{id:'epic',label:'Epic',short:'E',multiplier:1.9,color:'#d986ff'},{id:'legendary',label:'Legendary',short:'L',multiplier:2.45,color:'#ffbd56'},{id:'mythic',label:'Mythic',short:'M',multiplier:3.2,color:'#ff6878'}],rarityById=Object.fromEntries(rarities.map(x=>[x.id,x])),rarityIndex=id=>rarities.findIndex(x=>x.id===id),itemById=Object.fromEntries(itemKinds.map(x=>[x.id,x]));
-const affixDefinitions=[['damage','Řezavý','⚔',2,2],['crit','Přesný','✹',1,1],['armor','Neochvějný','🛡',3,4],['evasion','Kluzký','〰',1,1],['vitality','Zavalitý','♥',5,5],['leech','Vampirický','🩸',1,1],['gold','Pozlacený','◈',3,4],['thorns','Ostnatý','🌵',4,4],['absorb','Pohltivý','◒',1,2],['haste','Hbitý','⚡',2,2],['luck','Šťastný','☘',2,2]].map(x=>({id:x[0],label:x[1],icon:x[2],base:x[3],step:x[4]})),affixById=Object.fromEntries(affixDefinitions.map(x=>[x.id,x]));
+const affixDefinitions=[['damage','Řezavý','⚔',2,2],['crit','Přesný','✹',1,1],['armor','Neochvějný','🛡',3,4],['evasion','Kluzký','〰',1,1],['vitality','Zavalitý','♥',5,5],['leech','Vampirický','🩸',1,1],['gold','Pozlacený','◈',3,4],['thorns','Ostnatý','🌵',4,4],['absorb','Pohltivý','◒',1,2],['haste','Hbitý','⚡',2,2],['might','Silný','⚔',1,1],['grit','Odolný','♥',1,1],['agility','Obratný','〰',1,1],['intelligence','Učený','✶',1,1],['luck','Šťastný','☘',1,1],['perception','Všímavý','◉',1,1],['allStats','Všestranný','✦',1,1]].map(x=>({id:x[0],label:x[1],icon:x[2],base:x[3],step:x[4]})),affixById=Object.fromEntries(affixDefinitions.map(x=>[x.id,x]));
 
 const slots={weapon:'Zbraň',offhand:'Levá ruka',head:'Hlava',body:'Tělo',feet:'Boty',hands:'Ruce',ring:'Prsten',relic:'Relikvie'};
 const slotIds={
@@ -21,7 +21,7 @@ const itemLabels=['Cechovní dýka','Dřevorubecká sekera','Čarodějnické ko�
 itemKinds.forEach((d,i)=>{d.label=itemLabels[i];});
 const itemArt={dagger:0,axe:1,sword:2,staff:3,bow:4,crossbow:5,mace:6,spear:7,helm:8,breastplate:9,boots:10,gauntlets:11,shield:12,ring:13,amulet:14,book:15};
 ['broom','wand','frying-pan','scythe','cleaver','gavel','lute','umbrella','cloak','pauldron','belt','greaves','mask','crown','mail','hat','cape','vest','socks','egg','coin','goblet','whistle','orb','skull','teapot','hourglass','candle','key','cheese','mirror','sock'].forEach((id,i)=>{itemArt[id]=16+i;});
-const statCaps={crit:65,evasion:40,leech:25,thorns:100,absorb:40,haste:65,luck:60,block:45};
+const statCaps={crit:65,evasion:40,leech:25,thorns:100,absorb:40,haste:65,block:45};
 const signatures={
  dagger:{name:'Dýka druhého dechu',effect:'Po úhybu příští zásah způsobí dvojnásobné poškození.',trait:'riposte',genes:[['evasion',5],['crit',7],['haste',5]],poi:1},
  shield:{name:'Štít uraženého ježka',effect:'Blok nebo obranný manévr připraví odvetu. Příští běžný zásah přidá poškození ve výši 60 % tvé zbroje.',trait:'hedgehog',genes:[['armor',8],['thorns',25],['vitality',12]],poi:2},
@@ -43,6 +43,6 @@ const foeKinds={
  hunter:{name:'Lovec nedoplatků',art:2,style:'hunter',hint:'Střídá výstřel a nabíjení silné rány.'},
  spirit:{name:'Bludný strážce',art:5,style:'spirit',hint:'Každé tři tvoje útoky jeho poškození vzroste o 1. Čím delší boj, tím nebezpečnější je.'}
 };
-const statNames={damage:'Poškození',crit:'Kritická šance',armor:'Zbroj',evasion:'Úhyb',vitality:'Životy',leech:'Kradení života',gold:'Zlato',thorns:'Trny',absorb:'Pohlcení',haste:'Rychlost',luck:'Štěstí'};
+const statNames={damage:'Poškození',crit:'Kritická šance',armor:'Zbroj',evasion:'Úhyb',vitality:'Životy',leech:'Kradení života',gold:'Zlato',thorns:'Trny',absorb:'Pohlcení',haste:'Rychlost',might:'Síla',grit:'Odolnost',agility:'Obratnost',intelligence:'Inteligence',luck:'Štěstí',perception:'Všímavost',allStats:'Všechny atributy'};
 globalThis.RPGData={itemKinds,itemById,itemArt,statCaps,rarities,rarityById,rarityIndex,affixDefinitions,affixById,slots,signatures,traits,areas,foeKinds,statNames};
 })();
