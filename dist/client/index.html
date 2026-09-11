@@ -15,10 +15,12 @@
 <script defer src="engine.js"></script>
 <script defer src="audio.js"></script>
 <script defer src="scenes.js"></script>
+<script defer src="saves.js"></script>
 <script defer src="game.js"></script>
 </head>
 <body>
-<div class="game-shell" id="game">
+<main id="title-screen" class="title-screen" aria-label="Quest Happens"></main>
+<div class="game-shell" id="game" hidden>
 <header class="topbar"><div><small class="eyebrow">FANTASY VÝPRAVY</small><h1>Quest Happens</h1></div><button id="sound-button" class="icon-button" data-action="menu" aria-label="Otevřít menu">Menu</button></header>
 <div class="statusbar" id="statusbar"></div>
 <main id="view" tabindex="-1"></main>
