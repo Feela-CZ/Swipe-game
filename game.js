@@ -17,7 +17,7 @@ function titleView(){
  else if(front==='load')content='<h2>Load Game</h2>'+saves.rows.sort((a,b)=>a.slot.localeCompare(b.slot)).map(row=>btn('<strong>'+labels[row.slot]+'</strong><span>'+esc(row.state.heroName||'Dobrodruh')+' · úroveň '+row.state.level+'</span><small>'+esc(new Date(row.updated_at).toLocaleString('cs-CZ'))+'</small>','title-load',row.slot,'save-row',busy)).join('')+(!saves.rows.length?'<p>Žádná uložená pozice.</p>':'')+(stored?'<details><summary>Záloha z tohoto zařízení</summary>'+btn('Obnovit místní zálohu','title-load','local','secondary wide',busy)+'<p>Může obsahovat i postup, který se před zavřením hry nestihl odeslat.</p></details>':'')+btn('Zpět','title-back','','secondary',busy);
  else if(front==='new')content='<h2>New Game</h2><p>Automatickou pozici nahradí nová hra. Ruční pozice i původní záloha zůstanou.</p>'+btn('Začít novou hru','title-new-confirm','','primary wide',busy)+btn('Zpět','title-back','','secondary wide',busy);
  else content=btn('New Game','title-new','','primary wide',busy||!saves.ready)+btn('Load Game','title-list','','secondary wide',busy||!saves.ready)+btn('Settings','title-settings','','secondary wide',busy)+(hasSession?btn('Zpět do hry','title-resume','','text-button wide',busy||sessionStale):'');
- $('title-screen').innerHTML='<div class="title-art" aria-hidden="true"></div><div class="title-content"><h1>Quest<span>Happens</span></h1><div class="title-menu '+(front==='splash'?'splash-menu':'')+'">'+content+(busy?'<p role="status">Chvilku…</p>':'')+(saves.error?'<p role="alert">'+esc(saves.error)+'</p>'+btn('Zkusit znovu','title-retry','','secondary wide',busy):!saves.ready&&front!=='splash'?'<p role="status">Načítám pozice…</p>':'')+'</div></div>';
+ $('title-screen').innerHTML='<div class="title-art" aria-hidden="true"></div><div class="title-content"><h1 class="sr-only">Quest Happens</h1><div class="title-menu '+(front==='splash'?'splash-menu':['load','new'].includes(front)?'title-menu-panel':'')+'">'+content+(busy?'<p class="title-status" role="status">Načítám pozice…</p>':'')+(saves.error?'<p class="title-status" role="alert">'+esc(saves.error)+'</p>'+btn('Zkusit znovu','title-retry','','secondary wide',busy):!saves.ready&&front!=='splash'?'<p class="title-status" role="status">Načítám pozice…</p>':'')+'</div></div>';
 }
 async function refreshSaves(){
  busy=true;titleView();
@@ -316,7 +316,7 @@ function renderDialog(){
   body='<h2 id="dialog-title">Ukončit tuto výpravu?</h2><p>Zlato, zkušenosti i předměty zůstanou. Příští vstup začne od prvního místa. Pokud chceš jen přestávku, otevři mapu — postup se uloží.</p><div class="dialog-actions">'+btn('Zůstat','close','','primary')+btn('Vrátit se do tábora','retreat','','secondary')+'</div>';
  }
  const wasHidden=$('overlay').hidden,focusAction=document.activeElement?.dataset?.action,focusValue=document.activeElement?.dataset?.value;
- $('overlay').hidden=!body;$('game').inert=!!body;$('title-screen').inert=!!body;
+ $('overlay').hidden=!body;$('overlay').classList.toggle('title-dialog',!!front);$('game').inert=!!body;$('title-screen').inert=!!body;
  if(body){if(wasHidden)previousFocus=document.activeElement;$('overlay').innerHTML='<section class="dialog-card">'+body+'</section>';const restored=[...$('overlay').querySelectorAll('button:not(:disabled)')].find(b=>b.dataset.action===focusAction&&b.dataset.value===focusValue);(restored||$('overlay').querySelector('button:not(:disabled)')||$('overlay')).focus();}
  else{ $('overlay').innerHTML='';if(!wasHidden)previousFocus?.focus?.(); }
 }
