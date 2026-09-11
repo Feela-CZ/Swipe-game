@@ -6,7 +6,7 @@ const output = new URL('./dist/client/', import.meta.url);
 
 await rm(new URL('./dist/',import.meta.url), { recursive:true, force:true });
 await mkdir(output, { recursive:true });
-for (const entry of ['index.html', 'styles.css', 'mobile-scene.css', 'character.css', 'title.css', 'data.js', 'encounters.js', 'story.js', 'engine.js', 'audio.js', 'scenes.js', 'saves.js', 'game.js']) {
+for (const entry of ['index.html', 'styles.css', 'mobile-scene.css', 'character.css', 'palette.css', 'title.css', 'data.js', 'encounters.js', 'story.js', 'engine.js', 'audio.js', 'scenes.js', 'saves.js', 'game.js']) {
   await cp(new URL(`./${entry}`, import.meta.url), new URL(`./${entry}`, output), { recursive:true });
 }
 await mkdir(new URL('./assets/', output), {recursive:true});

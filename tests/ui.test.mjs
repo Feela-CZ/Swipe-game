@@ -7,6 +7,7 @@ assert.ok(html.includes('<title>Quest Happens · Fantasy výpravy</title>'));
 assert.ok(html.includes('<h1>Quest Happens</h1>'));assert.ok(html.includes('lang="cs"'));
 const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','scenes.js','saves.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
+const palette=await readFile(new URL('../palette.css',import.meta.url),'utf8');
 for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
 const handlers={},nodes=new Map(),storage=new Map(),timers=new Map();let seq=0;
 const node=id=>({id,dataset:{},innerHTML:'',textContent:'',hidden:id==='overlay',style:{},disabled:false,inert:false,
@@ -68,6 +69,7 @@ const item=state().inventory[0];click('item',item.id);assert.ok(overlay().includ
 click('journal');assert.ok(overlay().includes('Kronika'));click('close');
 assert.ok(css.includes('[hidden]{display:none!important}'));assert.ok(css.includes('prefers-reduced-motion'));
 assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-modal="true"'));
+assert.ok(html.includes('palette.css'));assert.match(palette,/\.health i\{background:linear-gradient\(90deg,#8e1f24/);assert.match(palette,/\.bottom-tabs button\.active\{[^}]*#24577f/);
 console.log('UI integration passed: initial render, four tabs, modal focus/inert state, shop/potions, branching expedition, saved resume, timed combat, tactical boss, loot and inventory. No real-browser layout or physical-device claim.');
 const seeded=new ctx.RPG.Game();seeded.setHeroName('Vendel');seeded.state.growth.luck=2;const lucky=seeded.item('ring','rare',1,[['luck',3]]);seeded.state.inventory.push(lucky);
 storage.set('ne-ale-zabijim-v3',JSON.stringify(seeded.state));await boot();dismissStories();const loadedLuckyId=state().inventory[0].id;
