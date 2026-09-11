@@ -268,7 +268,7 @@ class Game {
  choose(side){
   const s=this.state,r=s.run;if(!r||r.battle||s.notice||s.pending.length||!['left','right'].includes(side))return false;
   const id=this.room().id,left=side==='left',f=r.flags;
-  r.lastScene=id;r.lastFoe=null;
+  r.lastScene=id;r.lastFoe=null;r.lastCheck=null;
   s.metrics.choices++;r.choices.push(id+':'+side);
   if(D.encounterById[id])return this.encounter(D.encounterById[id],left);
   switch(id){

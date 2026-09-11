@@ -215,6 +215,9 @@ test('skill checks combine authored odds, half a point per attribute and visible
  rolls=[0,0,.99];g.random=()=>rolls.shift();assert.equal(g.skillCheck('luck',0).chance,5);
  g.state.growth.might=100;rolls=[.999,.999,0];g.random=()=>rolls.shift();assert.equal(g.skillCheck('might',90).chance,95);
 });
+test('a resolved skill check cannot leak into an unrelated later encounter',()=>{
+ const g=fresh();g.start();g.state.run.rooms=['event-hazard-0','event-hunt-0','boss'];g.random=()=>0;g.choose('left');assert.ok(g.state.notice.check);g.state.notice=null;g.choose('right');assert.equal(g.state.run.lastCheck,null);
+});
 test('forest choice really disables roots and regional scenes do not reuse tower interiors',()=>{
  const g=fresh();g.state.unlocked=D.areas.length;g.start(1);g.state.run.rooms=['fork','boss'];
  assert.ok(g.room().text.includes('kořeny'));g.choose('left');assert.ok(g.state.run.flags.silent);g.state.notice=null;
