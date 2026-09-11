@@ -3,13 +3,19 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#08191d">
+<meta name="theme-color" content="#5d3823">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="description" content="Fantasy výpravy. Jedním tahem rozhoduj, porážej prokleté vládce oblastí a vyšlechti vlastní výbavu.">
 <title>Quest Happens · Fantasy výpravy</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/app-icon-192.png">
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="mobile-scene.css">
 <link rel="stylesheet" href="character.css">
 <link rel="stylesheet" href="palette.css">
+<link rel="stylesheet" href="map.css">
 <link rel="stylesheet" href="title.css">
 <link rel="preload" href="assets/title-adventure-v1.webp" as="image" fetchpriority="high">
 <script defer src="data.js"></script>
@@ -24,7 +30,7 @@
 <body>
 <main id="title-screen" class="title-screen" aria-label="Quest Happens"></main>
 <div class="game-shell" id="game" hidden>
-<header class="topbar"><div><small class="eyebrow">FANTASY VÝPRAVY</small><h1>Quest Happens</h1></div><button id="sound-button" class="icon-button" data-action="menu" aria-label="Otevřít menu">Menu</button></header>
+<header class="topbar"><div class="topbar-copy"><small id="topbar-kicker" class="eyebrow">EPIZODA I</small><h1 id="topbar-title">Údolí posledního světla</h1></div><button id="sound-button" class="icon-button" data-action="menu" aria-label="Otevřít menu">☰</button></header>
 <div class="statusbar" id="statusbar"></div>
 <main id="view" tabindex="-1"></main>
 <nav class="bottom-tabs" aria-label="Herní části">

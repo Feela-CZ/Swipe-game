@@ -1,0 +1,16 @@
+{
+  "name": "Quest Happens",
+  "short_name": "Quest Happens",
+  "description": "Fantasy výpravy, ve kterých každé rozhodnutí může být hrdinské. Nebo přinejmenším levné.",
+  "lang": "cs",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ead8b5",
+  "theme_color": "#5d3823",
+  "icons": [
+    {"src": "assets/app-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "assets/app-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

@@ -38,7 +38,7 @@ class Game {
   return {version:4,heroName:'',level:1,xp:0,points:30,levelNotice:{from:1,to:1,hp:0,points:30,initial:true},growth:{might:0,grit:0,agility:0,intelligence:0,luck:0,perception:0},
    gold:35,essence:12,potions:3,hp:119,equipped,inventory:[],capacity:20,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
-   unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1},lastReport:null,
+   unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1,mapLabels:true},lastReport:null,
    storyEvents:[],metrics:{choices:0,merges:0,runs:0,bosses:0}};
  }
  migrate(raw){
@@ -77,7 +77,7 @@ class Game {
    const mappedArea=oldEpisode&&integer(raw.selectedArea)>=3?integer(raw.selectedArea)+1:integer(raw.selectedArea);
    s.selectedArea=clamp(mappedArea,0,s.unlocked-1);
    s.selectedChallenge=clamp(integer(raw.selectedChallenge),0,s.records[s.selectedArea].highest+1);
-   s.settings={sound:raw.settings?.sound===true,volume:Number.isFinite(raw.settings?.volume)?clamp(raw.settings.volume,0,1):.55,speed:raw.settings?.speed===2?2:1};
+   s.settings={sound:raw.settings?.sound===true,volume:Number.isFinite(raw.settings?.volume)?clamp(raw.settings.volume,0,1):.55,speed:raw.settings?.speed===2?2:1,mapLabels:raw.settings?.mapLabels!==false};
    s.lastReport=raw.lastReport?copy(raw.lastReport):null;s.metrics={...s.metrics,...raw.metrics};
    s.run=raw.run&&D.areas[raw.run.area]&&Array.isArray(raw.run.rooms)?copy(raw.run):null;
    s.pending=(raw.pending||[]).map(p=>p.type==='item'?{...p,item:sanitize(p.item)}:copy(p)).filter(p=>p.type!=='item'||p.item);

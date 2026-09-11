@@ -144,8 +144,13 @@ function render(){
  $('game').hidden=!!front;$('title-screen').hidden=!front;
  if(front){titleView();renderDialog();return;}
  if(!s.run)game.introduceChapter();
- $('statusbar').innerHTML='<div class="hero-status"><span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>'+esc(game.state.heroName||'Dobrodruh')+' <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div></div>';
- $('sound-button').setAttribute('aria-label','Otevřít menu');$('sound-button').textContent='Menu';
+ $('statusbar').hidden=tab==='map';
+ $('statusbar').innerHTML=tab==='map'?'':'<div class="hero-status"><span class="level-medal">'+s.level+'</span><div class="mini-hp"><strong>'+esc(game.state.heroName||'Dobrodruh')+' <small>'+Math.ceil(s.hp)+' / '+a.maxHp+'</small></strong>'+health(s.hp,a.maxHp)+'</div></div>';
+ $('game').classList.toggle('map-mode',tab==='map');
+ const activeArea=D.areas[s.run?.area??s.selectedArea];
+ $('topbar-kicker').textContent='EPIZODA I';
+ $('topbar-title').textContent=tab==='map'?D.chapter.mapTitle:activeArea?.name||D.chapter.mapTitle;
+ $('sound-button').setAttribute('aria-label','Otevřít menu');$('sound-button').textContent='☰';
  $('points-dot').hidden=!s.points&&!s.levelNotice;
  for(const b of document.querySelectorAll('.bottom-tabs button')){b.classList.toggle('active',b.dataset.value===tab);b.setAttribute('aria-current',b.dataset.value===tab?'page':'false');}
  $('view').setAttribute('data-view',tab);
@@ -157,18 +162,12 @@ function wallet(keys=['gold','essence']){return '<div class="context-wallet">'+k
 function heading(kicker,title,right=''){return '<div class="heading"><div><small class="eyebrow">'+kicker+'</small><h2>'+title+'</h2></div>'+right+'</div>';}
 function mapView(){
  const s=game.state;
- const firstReveal=s.unlocked>(s.flags.mapSeen||0);s.flags.mapSeen=s.unlocked;
- let paths='';
- for(let i=0;i<D.areas.length-1;i++){
-  const a=D.areas[i],b=D.areas[i+1];if(i>=s.unlocked-1)continue;
-  const route='M '+a.x+' '+a.y+' Q '+((a.x+b.x)/2+8)+' '+((a.y+b.y)/2)+' '+b.x+' '+b.y,newPath=firstReveal&&i===s.unlocked-2;
-  if(newPath)paths+='<defs><mask id="route-reveal-'+i+'"><path class="route-reveal" d="'+route+'" pathLength="100" stroke="white" stroke-width="3" fill="none"/></mask></defs>';
-  paths+='<path class="map-path" d="'+route+'" pathLength="100"'+(newPath?' mask="url(#route-reveal-'+i+')"':'')+'/>';
- }
- const markers=D.areas.map((p,i)=>'<button class="map-pin '+(i>=s.unlocked?'locked':'')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+'" data-action="area" data-value="'+i+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled':'')+' aria-label="'+esc(p.name)+(i>=s.unlocked?' · zamčeno':'')+'"><b>'+(s.records[i].clears?'⚑':i<s.unlocked?'✦':'•')+'</b><span>'+p.short+'</span></button>').join('');
+ const lastSeen=Number.isFinite(s.flags.mapLabelSeen)?s.flags.mapLabelSeen:0,newlyUnlocked=s.unlocked>lastSeen?s.unlocked-1:-1;
+ s.flags.mapLabelSeen=Math.max(lastSeen,s.unlocked);
+ const labels=s.settings.mapLabels!==false?' labels-on':'';
+ const markers=D.areas.map((p,i)=>'<button class="map-pin poi-'+i+' '+(i>=s.unlocked?'locked':'available')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+' '+(i===newlyUnlocked?'newly-unlocked':'')+'" data-action="area" data-value="'+i+'" data-label="'+esc(p.name)+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled aria-hidden="true"':'')+' aria-label="'+esc(p.name)+'"></button>').join('');
  const alert=s.pending.length?btn('Nový nález','loot-show','','map-loot'):(s.run?btn('Pokračovat','tab','road','map-loot'):'' );
- return '<section class="map-screen"><header class="map-episode-heading"><small>EPIZODA I</small><h2>'+esc(D.chapter.mapTitle)+'</h2></header>'+
- '<div class="world-map"><div class="map-canvas"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+paths+'</svg>'+markers+'</div>'+alert+btn('<span aria-hidden="true">🔥</span><small>Tábor</small>','camp-menu','','camp-fab')+'</div></section>';
+ return '<section class="map-screen"><div class="world-map'+labels+'"><div class="map-canvas">'+markers+'</div>'+alert+btn('<span aria-hidden="true">🔥</span><small>Tábor</small>','camp-menu','','camp-fab')+'</div></section>';
 }
 function recipeCard(area){
  const p=D.areas[area],r=game.state.records[area],sig=D.signatures[p.recipe];
@@ -313,7 +312,7 @@ function renderDialog(){
  }else if(dialog?.type==='saving'){
   body='<h2 id="dialog-title">Ukládám…</h2><p role="status">Počkej na potvrzení.</p>';
  }else if(dialog?.type==='audio'){
-  body='<h2 id="dialog-title">Zvuk hry</h2><p>Údery, obrana, kořist a interakce. Hudba zatím není přidaná.</p>'+btn(s.settings.sound?'Vypnout zvuky':'Zapnout zvuky','sound-toggle','','primary wide')+'<label class="audio-volume" for="audio-volume">Hlasitost efektů <output id="audio-value">'+Math.round(s.settings.volume*100)+' %</output><input id="audio-volume" type="range" min="0" max="100" step="5" value="'+Math.round(s.settings.volume*100)+'"></label>'+'<div class="dialog-actions">'+[['block','Kovový blok'],['blade','Čepel'],['blunt','Palice'],['arrow','Šíp'],['shield','Magická bariéra'],['heal','Léčení']].map(([cue,label])=>btn(label,'sound-preview',cue,'secondary',!s.settings.sound||!s.settings.volume)).join('')+'</div>'+'<p class="muted">Nastavení se ukládá. Po přepnutí aplikace zvuky utichnou.</p>'+btn('Zavřít','close','','text-button wide');
+  body='<h2 id="dialog-title">Nastavení</h2><p>Zvuky boje, kořisti a interakcí. Hudba zatím není přidaná.</p>'+btn(s.settings.sound?'Vypnout zvuky':'Zapnout zvuky','sound-toggle','','primary wide')+'<label class="audio-volume" for="audio-volume">Hlasitost efektů <output id="audio-value">'+Math.round(s.settings.volume*100)+' %</output><input id="audio-volume" type="range" min="0" max="100" step="5" value="'+Math.round(s.settings.volume*100)+'"></label>'+btn((s.settings.mapLabels!==false?'Skrýt':'Zobrazit')+' názvy míst na mapě','map-labels-toggle','','secondary wide')+'<div class="dialog-actions">'+[['block','Kovový blok'],['blade','Čepel'],['blunt','Palice'],['arrow','Šíp'],['shield','Magická bariéra'],['heal','Léčení']].map(([cue,label])=>btn(label,'sound-preview',cue,'secondary',!s.settings.sound||!s.settings.volume)).join('')+'</div>'+'<p class="muted">Nastavení se ukládá. Po přepnutí aplikace zvuky utichnou.</p>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='currency'){
   const gold=dialog.id==='gold';body='<h2 id="dialog-title">'+(gold?'Zlato':'Esence')+'</h2><p class="currency-total">'+(gold?s.gold:s.essence)+'</p><p>'+(gold?'Za zlato nakupuješ výbavu a lektvary. Získáváš ho bojem, některými rozhodnutími, z truhel a prodejem předmětů. Štěstí zvyšuje odměny, ne prodejní ceny.':'Esence slouží ke slučování a výrobě jedinečných předmětů. Získáváš ji za boj, rozkladem výbavy a z truhel bez předmětu. Zlato ji nenahrazuje.')+'</p>'+btn('Rozumím','close','','primary wide');
  }else if(dialog?.type==='journal'){
@@ -348,7 +347,7 @@ function close(){dialog=null;selected=null;donor=null;}
 function dispatch(action,value){
  if(action.startsWith('title-')){void titleAction(action,value);return;}
  if(busy&&!front)return;
- if(front&&!['sound-toggle','sound-preview','close'].includes(action))return;
+ if(front&&!['sound-toggle','sound-preview','map-labels-toggle','close'].includes(action))return;
  let result=true;const s=game.state,beforeStats=game.stats();
  audio.configure(s.settings.sound,s.settings.volume);void audio.unlock();
  if(!front&&!s.heroName&&action!=='name-confirm')return;
@@ -386,6 +385,7 @@ function dispatch(action,value){
   case 'main-menu':if(!saves.ready){front='menu';dialog=null;audio.stop();render();return;}void saveAndReturn('auto',true);return;
   case 'sound':dialog={type:'audio',back:dialog?.type==='menu'?dialog:null};break;
   case 'sound-toggle':s.settings.sound=!s.settings.sound;audio.configure(s.settings.sound,s.settings.volume);if(s.settings.sound)sound('equip');break;
+  case 'map-labels-toggle':s.settings.mapLabels=s.settings.mapLabels===false;break;
   case 'sound-preview':sound(['block','blade','blunt','arrow','shield','heal'].includes(value)?value:'block');break;
   case 'growth':result=game.spend(value);break;
   case 'help':dialog={type:'help',id:value};break;
@@ -472,7 +472,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{audio.visibility(document.hidden);if(document.hidden){clearTimeout(timer);save();if(!front&&hasSession&&saves.ready)void cloudSave();}else{render();}});
 window.addEventListener('pagehide',()=>{audio.visibility(true);save();if(!front&&hasSession&&saves.ready)void cloudSave();});
 window.addEventListener('pageshow',()=>{audio.visibility(document.hidden);});
-try{const prefs=JSON.parse(localStorage.getItem(KEY+'-settings')||'null');if(prefs){game.state.settings.sound=prefs.sound===true;game.state.settings.volume=Number.isFinite(prefs.volume)?Math.max(0,Math.min(1,prefs.volume)):.55;}}catch{}
+try{const prefs=JSON.parse(localStorage.getItem(KEY+'-settings')||'null');if(prefs){game.state.settings.sound=prefs.sound===true;game.state.settings.volume=Number.isFinite(prefs.volume)?Math.max(0,Math.min(1,prefs.volume)):.55;game.state.settings.mapLabels=prefs.mapLabels!==false;}}catch{}
 render();setTimeout(()=>{if(front==='splash'){front='menu';render();}},1600);void refreshSaves();
 if(storageError)toast('Původní místní pozici nelze přečíst. Serverové pozice zůstávají dostupné přes Load Game.');
 })();

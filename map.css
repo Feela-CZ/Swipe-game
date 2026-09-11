@@ -1,0 +1,8 @@
+/* Final map interaction layer; kept separate so future map art can be swapped cleanly. */
+.game-shell,.topbar,#view,.bottom-tabs{width:100%;min-width:0}
+.topbar-copy{overflow:hidden}
+.map-canvas{background-image:url('assets/episode-1-map-v2.webp')}
+.labels-on .map-pin.newly-unlocked::after{animation:poi-label-fade 1.4s .15s ease-out both}
+@keyframes poi-label-fade{0%,25%{opacity:0}100%{opacity:1}}
+@media(max-width:380px){.map-pin::after{font-size:.58rem;padding:3px 5px}.map-pin{width:50px;height:50px;min-width:50px;min-height:50px}}
+@media(orientation:landscape) and (max-height:600px){.game-shell.map-mode{grid-template-rows:minmax(0,1fr) auto}.game-shell.map-mode .topbar{display:none}.game-shell.map-mode #view{grid-row:1}.map-pin::after{font-size:.58rem}}

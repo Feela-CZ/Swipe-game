@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const html=await readFile(new URL('../index.html',import.meta.url),'utf8');
 assert.ok(html.includes('<title>Quest Happens · Fantasy výpravy</title>'));
-assert.ok(html.includes('<h1>Quest Happens</h1>'));assert.ok(html.includes('lang="cs"'));
+assert.ok(html.includes('id="topbar-title">Údolí posledního světla</h1>'));assert.ok(html.includes('lang="cs"'));
 const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','scenes.js','saves.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
 const palette=await readFile(new URL('../palette.css',import.meta.url),'utf8');
@@ -70,7 +70,7 @@ const item=state().inventory[0];click('item',item.id);assert.ok(overlay().includ
 click('journal');assert.ok(overlay().includes('Kronika'));click('close');
 assert.ok(css.includes('[hidden]{display:none!important}'));assert.ok(css.includes('prefers-reduced-motion'));
 assert.ok(scripts[4].includes("'dice','roll-success','roll-fail'"));assert.ok(scripts[7].includes("Přeskočit hod"));
-assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-modal="true"'));
+assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-modal="true"'));assert.ok(html.includes('manifest.webmanifest'));
 assert.ok(html.includes('palette.css'));assert.match(palette,/\.health i\{background:linear-gradient\(90deg,#8e1f24/);assert.match(palette,/\.bottom-tabs button\.active\{[^}]*#ffe087/);assert.ok(palette.includes("navigation-atlas-v1.png"));assert.equal((html.match(/class="nav-art"/g)||[]).length,4);
 console.log('UI integration passed: initial render, four tabs, modal focus/inert state, shop/potions, branching expedition, saved resume, timed combat, tactical boss, loot and inventory. No real-browser layout or physical-device claim.');
 const seeded=new ctx.RPG.Game();seeded.setHeroName('Vendel');seeded.state.growth.luck=2;seeded.state.points=0;seeded.state.levelNotice=null;const lucky=seeded.item('ring','rare',1,[['luck',3]]);seeded.state.inventory.push(lucky);
@@ -85,12 +85,12 @@ click('stat-help','luck');assert.ok(overlay().includes('Prsten štěstí'));clic
 click('equipped','ring');click('unequip','ring');assert.ok(view().includes('<strong>Štěstí</strong><span>2</span>'));click('tab','map');click('start');assert.ok(!view().includes('held-weapon'));
 console.log('UI equipment regression passed: luck comparison, nested help/back, equip feedback, 15 stat explanations, unequip, portrait without weapon overlay.');
 assert.ok(view().includes('action-dock'));assert.ok(!view().includes('held-weapon'));
-click('tab','map');assert.ok(view().includes('map-screen'));assert.ok(view().includes('Údolí posledního světla'));click('area',0);assert.ok(overlay().includes('Mýtná věž'));click('close');
+click('tab','map');assert.ok(view().includes('map-screen'));assert.equal(nodes.get('topbar-title').textContent,'Údolí posledního světla');assert.equal(nodes.get('statusbar').hidden,true);assert.ok(!view().includes('<svg'));assert.ok(!view().includes('⚑'));click('area',0);assert.ok(overlay().includes('Mýtná věž'));click('close');
 click('currency','gold');assert.ok(overlay().includes('Zlato'));click('close');click('currency','essence');assert.ok(overlay().includes('Esence'));click('close');
 click('chapter');assert.ok(overlay().includes('Král, který zakázal soumrak'));click('close');
 assert.ok(css.includes('height:100dvh'));assert.ok(css.includes('env(safe-area-inset-bottom)'));assert.ok(css.includes('orientation:landscape'));
 console.log('Narrative UI and mobile layout structure passed. Real browser geometry and physical-device testing are not covered.');
-click('sound');assert.ok(overlay().includes('Zvuk hry'));assert.ok(overlay().includes('Hlasitost efektů'));for(const cue of ['block','blade','blunt','arrow','shield','heal'])assert.ok(overlay().includes('data-value="'+cue+'"'));handlers.input({target:{id:'audio-volume',value:'25'}});assert.equal(state().settings.volume,.25);click('sound-toggle');assert.ok(state().settings.sound);click('sound-preview','block');click('sound-preview','heal');click('sound-toggle');assert.equal(state().settings.sound,false);click('close');sane();
+click('sound');assert.ok(overlay().includes('Nastavení'));assert.ok(overlay().includes('Hlasitost efektů'));assert.ok(overlay().includes('názvy míst na mapě'));for(const cue of ['block','blade','blunt','arrow','shield','heal'])assert.ok(overlay().includes('data-value="'+cue+'"'));handlers.input({target:{id:'audio-volume',value:'25'}});assert.equal(state().settings.volume,.25);click('map-labels-toggle');assert.equal(state().settings.mapLabels,false);click('map-labels-toggle');assert.equal(state().settings.mapLabels,true);click('sound-toggle');assert.ok(state().settings.sound);click('sound-preview','block');click('sound-preview','heal');click('sound-toggle');assert.equal(state().settings.sound,false);click('close');sane();
 
 // Scene-first presentation, deterministic art mapping and contextual currency.
 const sceneCss=await readFile(new URL('../mobile-scene.css',import.meta.url),'utf8');
@@ -115,7 +115,7 @@ assert.ok(!view().includes('location-emblem'));assert.ok(!view().includes('data-
 click('choice','left');assert.equal(state().run.battle.kind,'thief');assert.ok(view().includes('aria-label="Krysa s měšcem"'));
 click('menu');assert.ok(overlay().includes('Ukončit výpravu'));assert.ok(overlay().includes('disabled'));
 assert.equal([...timers.values()].filter(t=>t.ms>0&&t.ms<=1050).length,0,'Menu stops combat timer');
-click('sound');assert.ok(overlay().includes('Zvuk hry'));click('close');assert.ok(overlay().includes('Menu'));click('close');
+click('sound');assert.ok(overlay().includes('Nastavení'));click('close');assert.ok(overlay().includes('Menu'));click('close');
 function tickCombat(){const task=[...timers.entries()].filter(([,t])=>t.ms>0&&t.ms<=1050).at(-1);assert.ok(task);timers.delete(task[0]);task[1].fn();}
 tickCombat();assert.ok(view().includes('motion-player'));
 if(state().run.battle){tickCombat();assert.ok(view().includes('motion-enemy'));}
