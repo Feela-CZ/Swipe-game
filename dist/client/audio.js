@@ -2,9 +2,9 @@
 (function(){
 'use strict';
 const RATE=22050,TAU=Math.PI*2;
-const names=['tap','page','blade','blunt','arrow','magic','hurt','block','dodge','critical','potion','coins','equip','chest','forge','salvage','loot','rare','victory','defeat','warning','level','shield','thorns','heal'];
+const names=['tap','page','blade','blunt','arrow','magic','hurt','block','dodge','critical','potion','coins','equip','chest','forge','salvage','loot','rare','victory','defeat','warning','level','shield','thorns','heal','dice','roll-success','roll-fail'];
 function synth(name){
- const duration=({block:.62,blade:.48,blunt:.45,critical:.45,heal:.55,rare:1.1,victory:1.2,defeat:1,level:1,forge:.85,magic:.65,chest:.6,potion:.65,coins:.65,warning:.65})[name]||.42;
+ const duration=({block:.62,blade:.48,blunt:.45,critical:.45,heal:.55,rare:1.1,victory:1.2,defeat:1,level:1,forge:.85,magic:.65,chest:.6,potion:.65,coins:.65,warning:.65,dice:.78,'roll-success':.48,'roll-fail':.48})[name]||.42;
  const data=new Float32Array(Math.ceil(duration*RATE));let seed=names.indexOf(name)+917;
  const rand=()=>{seed^=seed<<13;seed^=seed>>>17;seed^=seed<<5;return(seed>>>0)/4294967296*2-1;};
  function tone(f,to,start,length,amp,decay=length/3,rich=0){
@@ -59,6 +59,9 @@ function synth(name){
   case 'shield':noise(0,.18,.42,.09,true);tone(180,165,0,.23,.22,.08);tone(540,500,.02,.27,.13,.11);break;
   case 'heal':chime([523,659],.015,.09,.085);noise(0,.3,.18,.06,true);break;
   case 'thorns':noise(0,.13,.65,.6);tone(620,130,0,.19,.25,.04);break;
+  case 'dice':[0,.11,.23,.36,.51].forEach((t,i)=>{thud(t,.19-i*.018);noise(t,.045,.26,.58);tone(410+i*37,360+i*19,t,.055,.07,.014);});break;
+  case 'roll-success':chime([659,880,1175],0,.075,.14);break;
+  case 'roll-fail':thud(0,.28);tone(247,185,.05,.34,.14,.12);break;
  }
  // Gentle saturation, DC removal and short edge fades prevent clicks/clipping.
  const mean=data.reduce((sum,x)=>sum+x,0)/data.length;let peak=0;

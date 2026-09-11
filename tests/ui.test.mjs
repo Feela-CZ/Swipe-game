@@ -50,7 +50,8 @@ click('tab','road');
 let steps=0;
 while(state().run&&steps++<4000){
  const s=state();
- if(s.pending.length){
+ if(view().includes('data-action="rng-skip"'))click('rng-skip');
+ else if(s.pending.length){
   if(s.pending[0].type==='chest')click('chest');else click('loot',s.inventory.length<s.capacity?'take':'sell');
  }else if(s.notice)click('continue');
  else if(s.run.battle){
@@ -68,6 +69,7 @@ dismissStories();
 const item=state().inventory[0];click('item',item.id);assert.ok(overlay().includes('Detail předmětu'));click('close');
 click('journal');assert.ok(overlay().includes('Kronika'));click('close');
 assert.ok(css.includes('[hidden]{display:none!important}'));assert.ok(css.includes('prefers-reduced-motion'));
+assert.ok(scripts[4].includes("'dice','roll-success','roll-fail'"));assert.ok(scripts[7].includes("Přeskočit hod"));
 assert.ok(html.includes('viewport-fit=cover'));assert.ok(html.includes('aria-modal="true"'));
 assert.ok(html.includes('palette.css'));assert.match(palette,/\.health i\{background:linear-gradient\(90deg,#8e1f24/);assert.match(palette,/\.bottom-tabs button\.active\{[^}]*#ffe087/);assert.ok(palette.includes("navigation-atlas-v1.png"));assert.equal((html.match(/class="nav-art"/g)||[]).length,4);
 console.log('UI integration passed: initial render, four tabs, modal focus/inert state, shop/potions, branching expedition, saved resume, timed combat, tactical boss, loot and inventory. No real-browser layout or physical-device claim.');

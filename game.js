@@ -7,7 +7,7 @@ try{
  const current=localStorage.getItem(KEY);stored=current?JSON.parse(current):null;
  if(!current){for(const key of LEGACY){const old=localStorage.getItem(key);if(old){stored=JSON.parse(old);localStorage.setItem(KEY+'-legacy-backup',old);break;}}}
 }catch{storageError=true;}
-let game=new RPG.Game(stored);let tab='map',timer=null,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',pointer=null,previousFocus=null;
+let game=new RPG.Game(stored);let tab='map',timer=null,checkTimer=null,checkAnimating=false,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',pointer=null,previousFocus=null;
 const saves=new RPGSaves.Saves((...args)=>fetch(...args));
 let front='splash',busy=false,autoTimer=null,lastSaved='',saveMessage='',hasSession=false,sessionRevision=0,sessionStale=false;
 function titleView(){
@@ -26,7 +26,7 @@ async function refreshSaves(){
 }
 function enter(state){
  sessionStale=false;sessionRevision=saves.rows.find(x=>x.slot==='auto')?.revision||0;
- clearTimeout(autoTimer);autoTimer=null;const preferences={...game.state.settings};game=new RPG.Game(state);game.state.settings=preferences;nameDraft=game.state.heroName||'Vendel';front='';hasSession=true;dialog=null;tab=game.state.run?'road':'map';paused=false;mergeBase=null;selected=null;filter='all';lastSaved='';lastAudioLevel=game.state.level;lastLootSound=game.state.pending[0]?.item?.id;game.drainAudio();render();
+ clearTimeout(autoTimer);autoTimer=null;clearTimeout(checkTimer);checkAnimating=false;const preferences={...game.state.settings};game=new RPG.Game(state);game.state.settings=preferences;nameDraft=game.state.heroName||'Vendel';front='';hasSession=true;dialog=null;tab=game.state.run?'road':'map';paused=false;mergeBase=null;selected=null;filter='all';lastSaved='';lastAudioLevel=game.state.level;lastLootSound=game.state.pending[0]?.item?.id;game.drainAudio();render();
 }
 async function cloudSave(slot='auto'){
  clearTimeout(autoTimer);autoTimer=null;const snapshot=JSON.stringify(game.state);
@@ -114,6 +114,15 @@ function save(){
  if(snapshot!==lastSaved&&saves.ready&&!autoTimer)autoTimer=setTimeout(()=>{autoTimer=null;void cloudSave();},1500);
 }
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toast.timer);toast.timer=setTimeout(()=>$('toast').classList.remove('show'),4000);}
+function currentCheck(){const s=game.state;return s.notice?.check||(s.run?.battle&&s.run.lastCheck)||null;}
+function finishCheckAnimation(playSound=true){
+ if(!checkAnimating)return false;clearTimeout(checkTimer);checkAnimating=false;const check=currentCheck();if(playSound&&check)sound(check.success?'roll-success':'roll-fail');render();return true;
+}
+function beginCheckAnimation(){
+ const check=currentCheck();if(!check)return;
+ const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches===true;if(reduced){game.cue(check.success?'roll-success':'roll-fail');return;}
+ clearTimeout(checkTimer);checkAnimating=true;game.cue('dice');checkTimer=setTimeout(()=>finishCheckAnimation(),game.state.settings.speed===2?720:1380);
+}
 function percent(n,max){return Math.max(0,Math.min(100,n/max*100));}
 function health(n,max,kind=''){return '<div class="health '+kind+'"><i style="width:'+percent(n,max)+'%"></i></div>';}
 function lootCard(it,compact=false){
@@ -184,12 +193,12 @@ function roadView(){
  (b?'<div class="battle-bonuses"><div class="hero-bonuses">'+effects.hero.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div><div class="enemy-bonuses">'+effects.enemy.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></div><div class="enemy-meter"><strong>'+esc(b.name)+'</strong>'+health(b.hp,b.maxHp,'enemy')+'<small>'+b.hp+' / '+b.maxHp+'</small></div>':'')+
   sceneSprite({...RPGScenes.hero,label:s.heroName||'Dobrodruh'},'hero-token')+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
  const check=n?.check||(b&&r.lastCheck),checkNames={might:'Síla',grit:'Odolnost',agility:'Obratnost',intelligence:'Inteligence',luck:'Štěstí',perception:'Všímavost'};
- const dieFaces=['','⚀','⚁','⚂','⚃','⚄','⚅'],checkView=check?'<div class="rng-check '+(check.success?'check-success':'check-fail')+'"><div class="dice" aria-label="Hod kostkami '+check.dice[0]+' a '+check.dice[1]+'"><i>'+dieFaces[check.dice[0]]+'</i><i>'+dieFaces[check.dice[1]]+'</i></div><div><strong>'+(check.success?'Úspěch':'Neúspěch')+' · hod '+check.roll+'</strong><small>'+check.base+' % základ + '+check.value+' '+checkNames[check.stat]+' × 0,5 + '+(check.dice[0]+check.dice[1])+' za kostky = <b>'+fmt(check.chance)+' %</b></small></div></div>':'';
+ const rngClass=checkAnimating?' rng-playing'+(s.settings.speed===2?' rng-fast':''):'',dieFaces=['','⚀','⚁','⚂','⚃','⚄','⚅'],checkView=check?'<div class="rng-check '+(check.success?'check-success':'check-fail')+rngClass+'" aria-live="polite"><div class="dice" aria-label="Hod kostkami '+check.dice[0]+' a '+check.dice[1]+'"><i>'+dieFaces[check.dice[0]]+'</i><i>'+dieFaces[check.dice[1]]+'</i></div><div><small class="rng-math">'+check.base+' % základ + '+check.value+' '+checkNames[check.stat]+' × 0,5 + '+(check.dice[0]+check.dice[1])+' za kostky = <b>'+fmt(check.chance)+' %</b></small><strong class="rng-verdict">'+(check.success?'Úspěch':'Neúspěch')+' · kontrolní hod '+check.roll+'</strong></div></div>':'';
  let content='',actions='';
- if(n){content='<section class="panel outcome"><h2>'+esc(n.title)+'</h2>'+checkView+'<p>'+esc(n.text)+'</p>'+logs(n.logs)+'</section>';actions=btn('Pokračovat →','continue','','primary wide');}
+ if(n){content='<section class="panel outcome'+(checkAnimating?' rng-pending':'')+'"><h2>'+esc(n.title)+'</h2>'+checkView+'<div class="rng-consequence"><p>'+esc(n.text)+'</p>'+logs(n.logs)+'</div></section>';actions=checkAnimating?btn('Přeskočit hod','rng-skip','','secondary wide'):btn('Pokračovat →','continue','','primary wide');}
  else if(b&&!t){
   content='<section class="panel battle-panel"><div class="heading"><strong>'+(paused?'Boj pozastaven':b.turn==='player'?game.state.heroName+' připravuje útok':'Tah protivníka')+'</strong></div>'+checkView+'<ol class="combat-log" aria-live="polite">'+b.log.slice(-4).map(x=>'<li class="'+x.type+'">'+esc(x.text.replace(/(?:Sir )?Šmik/g,()=>game.state.heroName||'Dobrodruh'))+'</li>').join('')+'</ol><details><summary>Chování protivníka</summary><p>'+esc(b.hint)+'</p></details></section>';
-  actions='<div class="dock-tools">'+btn(paused?'Pokračovat':'Pozastavit','pause','','secondary')+btn('Lektvar · '+s.potions,'potion','','secondary',!s.potions||s.hp>=game.stats().maxHp)+btn(s.settings.speed+'× tempo','speed','','secondary')+'</div>';
+  actions=checkAnimating?btn('Přeskočit hod','rng-skip','','secondary wide'):'<div class="dock-tools">'+btn(paused?'Pokračovat':'Pozastavit','pause','','secondary')+btn('Lektvar · '+s.potions,'potion','','secondary',!s.potions||s.hp>=game.stats().maxHp)+btn(s.settings.speed+'× tempo','speed','','secondary')+'</div>';
  }else{
   const c=t||room;
   content='<section class="decision '+(t?'tactical':'')+'" id="swipe-card"><small class="eyebrow">'+(t?'TVŮJ TAH · BOJ ČEKÁ':'ROZHODNUTÍ')+'</small><h2>'+esc(c.title)+'</h2><p>'+esc(c.text)+'</p><div class="swipe-feedback" aria-hidden="true"><span>← '+esc(c.choices[0])+'</span><span>'+esc(c.choices[1])+' →</span></div><small class="swipe-hint">Táhni kartou nebo klepni dole na volbu.</small></section>';
@@ -328,7 +337,7 @@ function renderDialog(){
  else{ $('overlay').innerHTML='';if(!wasHidden)previousFocus?.focus?.(); }
 }
 function schedule(){
- if(front)return;
+ if(front||checkAnimating)return;
  const b=game.state.run?.battle;if(!b||b.tactic||paused||tab!=='road'||dialog||game.state.storyEvents.length||game.state.pending.length||game.state.notice||document.hidden||!game.state.heroName)return;
  timer=setTimeout(()=>{
   const idle=b.turn==='enemy'&&((b.style==='hunter'&&!b.charged)||(b.style==='thief'&&b.round>=4));
@@ -362,9 +371,10 @@ function dispatch(action,value){
   case 'area':if(Number(value)<s.unlocked){s.selectedArea=Number(value);s.selectedChallenge=0;dialog={type:'location'};}break;
   case 'difficulty':s.selectedChallenge=RPG.clamp(s.selectedChallenge+Number(value),0,s.records[s.selectedArea].highest+1);break;
   case 'start':result=game.start();if(result){tab='road';paused=false;}break;
-  case 'continue':s.notice=null;break;
+  case 'continue':if(finishCheckAnimation())return;s.notice=null;break;
+  case 'rng-skip':finishCheckAnimation();return;
   case 'choice':
-   if(s.run?.battle?.tactic){motion=value==='right'?'player':'enemy';result=game.tactic(value);}else result=game.choose(value);
+   if(s.run?.battle?.tactic){motion=value==='right'?'player':'enemy';result=game.tactic(value);}else{result=game.choose(value);if(result===true)beginCheckAnimation();}
    if(result==='character')tab='character';break;
   case 'pause':paused=!paused;break;
   case 'potion':result=game.potion();break;
