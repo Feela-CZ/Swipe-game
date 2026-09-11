@@ -82,6 +82,19 @@ const groups={
  ['Poutnická ochrana','Návod na kameni říká: šest mincí do kruhu posílí štít. Mince uprostřed je předchozí obětina.'],
  ['Zhasínající pečeť','Pečeť pohasíná u osamělé mince. Šest dalších by na chvíli vrátilo její ochrannou sílu.']]}
 };
+const checkTemplates={
+ clash:{right:['agility',[39,45,33,76,41]]},
+ ambush:{left:['perception',[32,40,47,58,35]]},
+ hazard:{left:['perception',[55,44,30,61,38]],right:['agility',[28,36,25,49,32]]},
+ salvage:{left:['might',[41,34,28,52,38]]},
+ chest:{left:['luck',[26,40,33,14,48]]},
+ shrine:{right:['intelligence',[63,50,43,73,55]]}
+};
+const checksFor=(kind,index,regional=false)=>{
+ const template=checkTemplates[kind];if(!template)return undefined;const checks={};
+ for(const [side,[stat,bases]] of Object.entries(template))checks[side]={stat,base:regional?Math.round(bases.reduce((a,b)=>a+b,0)/bases.length):bases[index%bases.length]};
+ return checks;
+};
 const regional=[
  [
  ['clash','Schodišťová hlídka','Na otočce schodů stojí strážný. Za zábradlím je úzký ochoz.'],
@@ -140,8 +153,8 @@ const regional=[
  ]
 ];
 const encounters=[];
-for(const [kind,group] of Object.entries(groups))group.rows.forEach(([title,text],i)=>encounters.push({id:'event-'+kind+'-'+i,kind,title,text,choices:group.choices,hints:['','']}));
-regional.forEach((rows,area)=>rows.forEach(([kind,title,text],i)=>encounters.push({id:'local-'+area+'-'+i,area,kind,title,text,choices:groups[kind].choices,hints:['','']})));
+for(const [kind,group] of Object.entries(groups))group.rows.forEach(([title,text],i)=>encounters.push({id:'event-'+kind+'-'+i,kind,title,text,choices:group.choices,hints:['',''],checks:checksFor(kind,i)}));
+regional.forEach((rows,area)=>rows.forEach(([kind,title,text],i)=>encounters.push({id:'local-'+area+'-'+i,area,kind,title,text,choices:groups[kind].choices,hints:['',''],checks:checksFor(kind,i,true)})));
 D.encounters=encounters;D.encounterById=Object.fromEntries(encounters.map(x=>[x.id,x]));
 D.expeditionLengths=[55,65,75,82,90,100];
 })();

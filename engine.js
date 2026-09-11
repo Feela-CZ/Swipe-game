@@ -185,7 +185,7 @@ class Game {
   }
   s.storyEvents.push(event);
  }
- note(title,text){this.state.notice={title,text};this.jot(text);}
+ note(title,text,check=null){this.state.notice={title,text};if(check)this.state.notice.check=copy(check);this.jot(text);}
  gold(amount){const n=Math.round(amount*(1+this.stats().gold/100));this.state.gold+=n;if(this.state.run)this.state.run.gold+=n;return n;}
  rarity(source='enemy',area=this.state.run?.area??this.state.selectedArea,challenge=this.state.run?.challenge??0){
   const tier=Math.min(4,area+challenge),w=source==='boss'?[0,0,76,21,3+tier,Math.max(0,tier-1)]:
@@ -200,12 +200,11 @@ class Game {
   return this.item(this.pick(catalog).id,this.rarity(source,area,challenge),ilvl);
  }
  dropChance(elite=false){return Math.min(.32,(elite?.16:.065)*(1+this.stats().luck/150));}
- attributeTarget(offset=0,area=this.state.run?.area??this.state.selectedArea,challenge=this.state.run?.challenge??this.state.selectedChallenge){
-  return [8,16,25,35,46,58][area]+Math.max(0,challenge||0)*7+offset;
+ skillCheck(stat,base){
+  const value=this.stats()[stat]||0,dice=[1+Math.floor(this.random()*6),1+Math.floor(this.random()*6)],attributeBonus=value*.5;
+  const chance=clamp(base+attributeBonus+dice[0]+dice[1],5,95),roll=1+Math.floor(this.random()*100);
+  return {stat,base,value,attributeBonus,dice,chance,roll,success:roll<=chance,attempt:1};
  }
- attributeMargin(stat,offset=0){return (this.stats()[stat]||0)-this.attributeTarget(offset);}
- attributeChance(stat,offset=0){const d=this.attributeMargin(stat,offset);return d>=15?.88:d>=5?.72:d>=0?.55:d>=-8?.28:.08;}
- attributeMitigation(stat,offset=0){const d=this.attributeMargin(stat,offset);return d>=15?5:d>=0?2:0;}
  price(item){return Math.round((8+this.basePower(item)*3+item.affixes.reduce((n,x)=>n+x.value*.5,0))*(1+D.rarityIndex(item.rarity)*.3));}
  room(){
   const r=this.state.run;if(!r)return null;
@@ -265,7 +264,7 @@ class Game {
   const row=defs[id]||defs.boss;
   return {id:row[0],title:row[1],text:row[2],choices:row[3],hints:row[4]};
  }
- advance(title,text){this.state.run.index++;this.note(title,text);}
+ advance(title,text,check=null){this.state.run.index++;this.note(title,text,check);}
  choose(side){
   const s=this.state,r=s.run;if(!r||r.battle||s.notice||s.pending.length||!['left','right'].includes(side))return false;
   const id=this.room().id,left=side==='left',f=r.flags;
@@ -329,34 +328,34 @@ class Game {
   return true;
  }
  encounter(event,left){
-  const s=this.state,r=s.run,f=r.flags,a=this.stats(),roll=()=>this.random(),before=s.hp;
-  const finish=(text)=>{this.advance(event.title,text);return true;};
+  const s=this.state,r=s.run,f=r.flags,a=this.stats(),roll=()=>this.random(),before=s.hp,side=left?'left':'right';
+  const checkDef=event.checks?.[side],check=checkDef?this.skillCheck(checkDef.stat,checkDef.base):null;if(check)r.lastCheck=copy(check);
+  const finish=(text)=>{this.advance(event.title,text,check);return true;};
   const wound=n=>{this.hurt(n);return before-s.hp;};
   switch(event.kind){
    case 'clash':
-    if(!left&&roll()<Math.min(.8,.35+a.evasion/100)){return finish('Proklouzl jsi kolem hlídky. Strážný si tvého průchodu nevšiml.');}
+    if(!left&&check.success){return finish('Proklouzl jsi kolem hlídky. Strážný si tvého průchodu nevšiml.');}
     this.fight('guard',false,left?'Postavil ses hlídce do cesty.':'Strážný si tě všiml při obcházení. Musíš se bránit.');return true;
    case 'hunt':
     if(left){this.fight('thief');return true;}return finish('Zloděj zmizel i s kořistí. Uchoval sis síly pro další cestu.');
    case 'ambush':
     this.fight('hunter');if(!left){r.battle.damage=Math.max(1,r.battle.damage-2);r.battle.hp=Math.round(r.battle.hp*1.15);r.battle.maxHp=r.battle.hp;r.battle.covered=true;r.battle.hpBonus=Math.round(((1+r.battle.hpBonus/100)*1.15-1)*100);this.log('Lovec tě sleduje přes hranu krytu a pevně sevře kuši.','story');}
-    else if(roll()<this.attributeChance('perception',2)){const seen=Math.max(2,Math.round(r.battle.maxHp*.15));r.battle.hp-=seen;this.log('Všímavost překonala náročnost místa a odhalila střelce dřív. První zásah mu vzal '+seen+' životů.','proc');}return true;
+    else if(check.success){const seen=Math.max(2,Math.round(r.battle.maxHp*.15));r.battle.hp-=seen;this.log('Všímavost odhalila střelce dřív. První zásah mu vzal '+seen+' životů.','proc');}return true;
    case 'toll':
     if(left&&s.gold>=9){s.gold-=9;return finish('Zaplatil jsi 9 zlata. Hlídka tě pustila bez boje.');}this.fight('guard',false,left?'Na poplatek nemáš. Hlídka tasí zbraně.':'Odmítl jsi zaplatit. Strážný tasí zbraň.');return true;
    case 'hazard':{
-    const spotted=roll()<this.attributeChance('perception'),safeCost=Math.max(0,3-this.attributeMitigation('grit'));
-    const agile=(this.attributeChance('agility',2)+this.attributeChance('perception',3))/2;
-    const cost=left?(spotted?0:safeCost):roll()<agile?0:Math.max(3,10+Math.floor(roll()*9)-this.attributeMitigation('grit')*2);
-    return finish(cost?'Překážka je za tebou. Ztratil jsi '+wound(cost)+' životů.':spotted?'Všímavost odhalila nebezpečný bod. Prošel jsi bez zranění.':'Zkratka vyšla bez zranění.');
+    const mitigation=Math.min(6,Math.round(a.grit*.08));
+    const cost=check.success?0:left?Math.max(1,3-mitigation):Math.max(3,10+Math.floor(roll()*9)-mitigation);
+    return finish(cost?'Překážka je za tebou. Ztratil jsi '+wound(cost)+' životů.':left?'Všímavost odhalila nebezpečný bod. Prošel jsi bez zranění.':'Zkratka vyšla bez zranění.');
    }
-   case 'salvage':if(left){const cost=wound(Math.max(1,6-this.attributeMitigation('grit'))),bonus=roll()<this.attributeChance('might',2)?1:0;s.essence+=2+bonus;return finish('Vyprostil jsi '+(2+bonus)+' esence. Ostré hrany tě stály '+cost+' životů.'+(bonus?' Síla obstála proti náročnosti místa a uvolnila i hlubší úlomek.':''));}return finish('Materiál zůstal na místě. Pokračuješ bez zranění.');
+   case 'salvage':if(left){const bonus=check.success?1:0,cost=wound(Math.max(1,(check.success?2:6)-Math.min(4,Math.round(a.grit*.06))));s.essence+=2+bonus;return finish('Vyprostil jsi '+(2+bonus)+' esence. Ostré hrany tě stály '+cost+' životů.'+(bonus?' Síla uvolnila i hlubší úlomek.':''));}return finish('Materiál zůstal na místě. Pokračuješ bez zranění.');
    case 'chest':
-    if(left){const cost=wound(Math.max(0,4-this.attributeMitigation('grit'))),findChance=.2+.55*(this.attributeChance('luck',2)+this.attributeChance('perception'))/2;if(roll()<findChance){this.chest(0,'Nález: '+event.title);return finish('Za cenu '+cost+' životů jsi uvolnil schránku. Teď ji můžeš otevřít.');}const gold=this.gold(5);return finish('Schránka byla vybraná. Zbylo '+gold+' zlata; ostrý okraj tě stál '+cost+' životů.');}
+    if(left){const cost=wound(Math.max(0,4-Math.min(3,Math.round(a.grit*.05))));if(check.success){this.chest(0,'Nález: '+event.title);return finish('Za cenu '+cost+' životů jsi uvolnil schránku. Teď ji můžeš otevřít.');}const gold=this.gold(5);return finish('Schránka byla vybraná. Zbylo '+gold+' zlata; ostrý okraj tě stál '+cost+' životů.');}
     return finish('Sebral jsi '+this.gold(4)+' zlata. Schránka zůstala zavřená.');
    case 'respite':if(left){this.heal(10+Math.floor(roll()*9));this.cue('potion');return finish('Klid a obvazy obnovily '+(s.hp-before)+' životů.');}s.essence++;return finish('Při hledání jsi našel 1 esenci. Čas na ošetření už nezbyl.');
    case 'aid':
     if(left&&s.gold>=8){s.gold-=8;f.favors=(f.favors||0)+1;return finish('Předal jsi 8 zlata. Zpráva o tvé pomoci putuje k zásobovacímu stanovišti dál na cestě.');}return finish(left?'Na pomoc ti chybí mince. Rozloučili jste se bez výměny.':'Rozloučil ses a pokračuješ. Zásobovači o tobě žádnou zprávu nedostanou.');
-   case 'shrine':if(left){this.heal(8);return finish('Čistá voda a obvaz obnovily '+(s.hp-before)+' životů.');}{const learned=4+(roll()<this.attributeChance('intelligence')?3:0);this.xp(learned);r.xp+=Math.round(learned*(1+a.xpBonus/100));return finish('Zápis tě naučil něco o zdejších nástrahách. Získal jsi '+Math.round(learned*(1+a.xpBonus/100))+' XP.');}
+   case 'shrine':if(left){this.heal(8);return finish('Čistá voda a obvaz obnovily '+(s.hp-before)+' životů.');}{const learned=4+(check.success?3:0);this.xp(learned);r.xp+=Math.round(learned*(1+a.xpBonus/100));return finish('Zápis tě naučil něco o zdejších nástrahách. Získal jsi '+Math.round(learned*(1+a.xpBonus/100))+' XP.');}
    case 'trade':if(left&&s.gold>=18){s.gold-=18;s.potions++;return finish('Za 18 zlata přibyl jeden lektvar do opasku.');}f.informed=true;return finish((left?'Na lektvar nemáš, ale rada je zdarma. ':'')+'Kupec ti načrtl cestu a označil několik bočních průchodů. Kresbu si zapamatuješ.');
    case 'tracks':if(left){this.fight('guard',true);r.battle.carriesChest=true;return true;}return finish('Ozbrojenec odnesl náklad. Ty pokračuješ za cílem výpravy.');
    case 'omen':if(left&&s.gold>=6){s.gold-=6;r.shield=Math.min(a.shieldCap,r.shield+12);return finish('Mince zapadly do drážek. Kruh se rozsvítil a na okamžik tě obklopilo chladné světlo.');}if(left)return finish('Nemáš šest zlatých. Ochrana zůstala neaktivní.');f.hunted=true;return finish('Vzal jsi '+this.gold(7)+' zlata. Pečeť zhasla. Tenký tón se nese chodbou a pomalu utichá.');

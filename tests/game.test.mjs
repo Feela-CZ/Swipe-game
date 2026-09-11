@@ -209,14 +209,11 @@ test('attributes influence probabilistic expedition checks without guaranteeing 
  const hp=g.state.hp;g.choose('left');assert.equal(g.state.hp,hp);assert.match(g.state.notice.text,/Všímavost/);
  const h=fresh();h.state.growth.might=100;h.start();h.state.run.rooms=['event-salvage-0','boss'];h.random=()=>0;h.choose('left');assert.match(h.state.notice.text,/3 esence/);
 });
-test('attribute thresholds scale sharply beyond the introductory tower',()=>{
- const g=fresh();
- assert.equal(g.attributeTarget(),8);assert.equal(g.attributeChance('might'),.28);
- g.state.growth.might=8;assert.equal(g.attributeChance('might'),.55);
- g.state.selectedArea=5;assert.equal(g.attributeTarget(),58);assert.equal(g.attributeChance('might'),.08);
- g.state.selectedChallenge=2;assert.equal(g.attributeTarget(),72);
- g.state.growth.might=77;assert.equal(g.attributeChance('might'),.72);
- g.state.growth.might=87;assert.equal(g.attributeChance('might'),.88);
+test('skill checks combine authored odds, half a point per attribute and visible 2d6 inside hard caps',()=>{
+ const g=fresh();g.state.growth.might=30;let rolls=[0,.999,.59];g.random=()=>rolls.shift();
+ const check=g.skillCheck('might',40);assert.deepEqual(plain(check),{stat:'might',base:40,value:30,attributeBonus:15,dice:[1,6],chance:62,roll:60,success:true,attempt:1});
+ rolls=[0,0,.99];g.random=()=>rolls.shift();assert.equal(g.skillCheck('luck',0).chance,5);
+ g.state.growth.might=100;rolls=[.999,.999,0];g.random=()=>rolls.shift();assert.equal(g.skillCheck('might',90).chance,95);
 });
 test('forest choice really disables roots and regional scenes do not reuse tower interiors',()=>{
  const g=fresh();g.state.unlocked=D.areas.length;g.start(1);g.state.run.rooms=['fork','boss'];

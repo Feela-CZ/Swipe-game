@@ -9,6 +9,7 @@ const make=seed=>new Game(null,rng(seed));
 const plain=x=>JSON.parse(JSON.stringify(x));
 assert.equal(D.encounters.length,113);assert.equal(new Set(D.encounters.map(x=>x.id)).size,113);
 for(const e of D.encounters){assert.equal(e.choices.length,2);assert.ok(e.title&&e.text&&e.kind);}
+const authoredChecks=D.encounters.flatMap(e=>Object.values(e.checks||{}));assert.ok(authoredChecks.length>40);assert.ok(authoredChecks.some(x=>x.base<=18));assert.ok(authoredChecks.some(x=>x.base>=70));assert.ok(authoredChecks.filter(x=>x.base>18&&x.base<70).length>authoredChecks.filter(x=>x.base<=18||x.base>=70).length);
 const routes=new Set(),scribes=new Set();
 for(let area=0;area<D.areas.length;area++)for(let seed=1;seed<=60;seed++){
  const g=make(seed*7919);g.state.unlocked=D.areas.length;g.start(area);const r=g.state.run,ids=r.rooms;
