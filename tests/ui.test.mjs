@@ -44,7 +44,7 @@ click('buy-potion');assert.equal(state().potions,4);assert.equal(state().gold,17
 click('tab','map');click('start');assert.ok(state().run);assert.ok(view().includes('Za branou'));sane();
 click('choice','left');assert.ok(view().includes('Vstupné zaplaceno'));click('continue');
 assert.ok(state().run.rooms.indexOf('scribe')>1);assert.ok(view().includes('/ 55'));sane();
-click('tab','map');assert.ok(view().includes('Výprava čeká'));
+click('tab','map');assert.ok(view().includes('map-loot'));
 const savedIndex=state().run.index;click('start');assert.equal(state().run.index,savedIndex);
 click('tab','road');
 let steps=0;
@@ -83,7 +83,7 @@ click('stat-help','luck');assert.ok(overlay().includes('Prsten štěstí'));clic
 click('equipped','ring');click('unequip','ring');assert.ok(view().includes('<strong>Štěstí</strong><span>2</span>'));click('tab','map');click('start');assert.ok(!view().includes('held-weapon'));
 console.log('UI equipment regression passed: luck comparison, nested help/back, equip feedback, 15 stat explanations, unequip, portrait without weapon overlay.');
 assert.ok(view().includes('action-dock'));assert.ok(!view().includes('held-weapon'));
-click('tab','map');assert.ok(view().includes('map-screen'));click('location');assert.ok(overlay().includes('Mýtná věž'));click('close');
+click('tab','map');assert.ok(view().includes('map-screen'));assert.ok(view().includes('Údolí posledního světla'));click('area',0);assert.ok(overlay().includes('Mýtná věž'));click('close');
 click('currency','gold');assert.ok(overlay().includes('Zlato'));click('close');click('currency','essence');assert.ok(overlay().includes('Esence'));click('close');
 click('chapter');assert.ok(overlay().includes('Král, který zakázal soumrak'));click('close');
 assert.ok(css.includes('height:100dvh'));assert.ok(css.includes('env(safe-area-inset-bottom)'));assert.ok(css.includes('orientation:landscape'));

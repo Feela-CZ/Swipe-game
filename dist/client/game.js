@@ -142,7 +142,7 @@ function render(){
 function wallet(keys=['gold','essence']){return '<div class="context-wallet">'+keys.map(key=>'<button class="currency '+key+'" data-action="currency" data-value="'+key+'" aria-label="'+(key==='gold'?'Zlato':'Esence')+': '+game.state[key]+'">'+itemArt(key==='gold'?'coin':'orb')+'<b>'+game.state[key]+'</b></button>').join('')+'</div>';}
 function heading(kicker,title,right=''){return '<div class="heading"><div><small class="eyebrow">'+kicker+'</small><h2>'+title+'</h2></div>'+right+'</div>';}
 function mapView(){
- const s=game.state,p=D.areas[s.selectedArea],rec=s.records[s.selectedArea];
+ const s=game.state;
  const firstReveal=s.unlocked>(s.flags.mapSeen||0);s.flags.mapSeen=s.unlocked;
  let paths='';
  for(let i=0;i<D.areas.length-1;i++){
@@ -151,14 +151,10 @@ function mapView(){
   if(newPath)paths+='<defs><mask id="route-reveal-'+i+'"><path class="route-reveal" d="'+route+'" pathLength="100" stroke="white" stroke-width="3" fill="none"/></mask></defs>';
   paths+='<path class="map-path" d="'+route+'" pathLength="100"'+(newPath?' mask="url(#route-reveal-'+i+')"':'')+'/>';
  }
- const markers=D.areas.map((p,i)=>'<button class="map-pin '+(i>=s.unlocked?'locked':'')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+'" data-action="area" data-value="'+i+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled':'')+' aria-label="'+esc(p.name)+(i>=s.unlocked?' · zamčeno':'')+'"><b>'+(s.records[i].clears?'⚑':i<s.unlocked?'✕':'•')+'</b><span>'+p.short+'</span></button>').join('');
- const pending=s.pending.length?'<div class="resume-banner">'+btn('Prohlédnout nález','loot-show','','primary')+'</div>':'';
- return '<section class="map-screen">'+heading('KAPITOLA I · '+s.records.filter(x=>x.clears).length+'/5','Pomezí Nedorozumění',btn('Příběh','chapter','','secondary'))+
- (s.run?'<small class="resume-note">Výprava čeká: '+D.areas[s.run.area].name+' · '+(s.run.index+1)+' / '+s.run.rooms.length+'</small>':'')+
- '<div class="world-map"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+paths+'</svg>'+markers+'</div>'+
- '<footer class="action-dock"><div class="location-summary"><strong>'+p.name+'</strong><small>'+(rec.clears?'Ozvěna · ':'')+'Hrozba '+(s.selectedChallenge+1)+' · kořist úr. '+(p.level+s.selectedChallenge*2)+'</small></div><div class="dock-tools">'+btn('Tábor','camp-menu','','secondary')+btn('O místě','location','','secondary')+'</div>'+pending+
- (!s.run?'<small class="preparation-note">'+D.expeditionLengths[s.selectedArea]+' míst · '+s.hp+' / '+game.stats().maxHp+' životů · '+s.potions+' lektvarů'+(s.hp<game.stats().maxHp?' · V táboře můžeš zdarma odpočívat.':'')+'</small>':'')+
- btn(s.run?'Pokračovat ve výpravě →':rec.clears?'Vstoupit do ozvěny →':'Vyrazit na výpravu →',s.run?'tab':'start',s.run?'road':'','primary wide',!!s.pending.length)+'</footer></section>';
+ const markers=D.areas.map((p,i)=>'<button class="map-pin '+(i>=s.unlocked?'locked':'')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+'" data-action="area" data-value="'+i+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled':'')+' aria-label="'+esc(p.name)+(i>=s.unlocked?' · zamčeno':'')+'"><b>'+(s.records[i].clears?'⚑':i<s.unlocked?'✦':'•')+'</b><span>'+p.short+'</span></button>').join('');
+ const alert=s.pending.length?btn('Nový nález','loot-show','','map-loot'):(s.run?btn('Pokračovat','tab','road','map-loot'):'' );
+ return '<section class="map-screen"><header class="map-episode-heading"><small>EPIZODA I</small><h2>Údolí posledního světla</h2></header>'+
+ '<div class="world-map"><div class="map-canvas"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+paths+'</svg>'+markers+'</div>'+alert+btn('<span aria-hidden="true">🔥</span><small>Tábor</small>','camp-menu','','camp-fab')+'</div></section>';
 }
 function recipeCard(area){
  const p=D.areas[area],r=game.state.records[area],sig=D.signatures[p.recipe];
@@ -283,7 +279,7 @@ function renderDialog(){
    '<div class="shop-row"><div><strong>🧪 Léčivý elixír</strong><small>Obnoví 40 % životů. V boji je po ruce.</small></div>'+btn('18 ◈','buy-potion','','secondary',s.gold<18||!!s.run)+'</div>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='location'){
   const p=D.areas[s.selectedArea],rec=s.records[s.selectedArea];
-  body='<h2 id="dialog-title">'+p.name+'</h2><p>'+(rec.clears?'Místo je osvobozené. Vstoupíš do ozvěny někdejší kletby a získáš skutečnou kořist; příběh se nevrací zpět.':p.quest)+'</p><p>'+p.hint+'</p><small>'+D.expeditionLengths[s.selectedArea]+' míst · '+p.boss+' · kořist úrovně '+(p.level+s.selectedChallenge*2)+'</small>'+(rec.clears?'<div class="difficulty">'+btn('−','difficulty','-1','small',s.selectedChallenge===0)+'<span>Hrozba '+(s.selectedChallenge+1)+'</span>'+btn('+','difficulty','1','small',s.selectedChallenge>=rec.highest+1)+'</div>':'')+btn('Zpět na mapu','close','','primary wide');
+  body='<small class="eyebrow">MÍSTO VÝPRAVY</small><h2 id="dialog-title">'+p.name+'</h2><p>'+(rec.clears?'Místo je osvobozené. Můžeš se vrátit do ozvěny někdejší kletby pro další kořist.':p.quest)+'</p><p>'+p.hint+'</p><small>'+D.expeditionLengths[s.selectedArea]+' setkání · '+p.boss+' · doporučená kořist úr. '+(p.level+s.selectedChallenge*2)+'</small>'+(rec.clears?'<div class="difficulty">'+btn('−','difficulty','-1','small',s.selectedChallenge===0)+'<span>Hrozba '+(s.selectedChallenge+1)+'</span>'+btn('+','difficulty','1','small',s.selectedChallenge>=rec.highest+1)+'</div>':'')+btn(s.run?'Pokračovat ve výpravě →':rec.clears?'Vstoupit do ozvěny →':'Vyrazit na výpravu →',s.run?'tab':'start',s.run?'road':'','primary wide',!!s.pending.length)+btn('Zpět na mapu','close','','text-button wide');
  }else if(dialog?.type==='camp-menu'){
   body='<h2 id="dialog-title">Tábor</h2><p>Odpočinek před výpravou je zdarma. V terénu doplníš lektvary jen u potkaných obchodníků.</p><div class="dialog-actions">'+btn('Odpočinout','rest','','secondary',!!s.run||s.hp>=game.stats().maxHp)+btn('Lektvar · 18 zlata','buy-potion','','secondary',s.gold<18||!!s.run)+btn('Poslední výprava','report','','secondary',!s.lastReport)+btn('Kronika','journal','','secondary')+'</div>'+btn('Zpět na mapu','close','','primary wide');
  }else if(dialog?.type==='report'){
@@ -352,7 +348,7 @@ function dispatch(action,value){
   case 'story-close':result=game.closeStory();break;
   case 'chapter':case 'location':case 'camp-menu':case 'report':dialog={type:action};break;
   case 'currency':dialog={type:'currency',id:value,back:dialog};break;
-  case 'area':if(Number(value)<s.unlocked){s.selectedArea=Number(value);s.selectedChallenge=0;}break;
+  case 'area':if(Number(value)<s.unlocked){s.selectedArea=Number(value);s.selectedChallenge=0;dialog={type:'location'};}break;
   case 'difficulty':s.selectedChallenge=RPG.clamp(s.selectedChallenge+Number(value),0,s.records[s.selectedArea].highest+1);break;
   case 'start':result=game.start();if(result){tab='road';paused=false;}break;
   case 'continue':s.notice=null;break;
