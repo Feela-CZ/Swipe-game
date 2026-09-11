@@ -19,6 +19,11 @@
 .road-screen .action-dock{padding-top:5px}
 .road-screen .action-dock>.wide{margin-top:0}
 .road-screen>.stage .context-wallet{position:absolute;top:4px;right:6px;z-index:3;margin:0}
+.road-screen .stage.tower-floor-0 .scene-art,.road-screen .stage.tower-floor-1 .scene-art,.road-screen .stage.tower-floor-2 .scene-art{inset:0;top:0;width:100%;height:100%;aspect-ratio:auto;transform:none;background-image:url('assets/tower-floors-v1.png');background-repeat:no-repeat;background-size:auto 300%}
+.road-screen .stage.tower-floor-0 .scene-art{background-position:center 0}
+.road-screen .stage.tower-floor-1 .scene-art{background-position:center 50%}
+.road-screen .stage.tower-floor-2 .scene-art{background-position:center 100%}
+.stage-location{position:absolute;left:9px;top:8px;z-index:3;padding:4px 8px;border:1px solid #f4c56599;border-radius:999px;background:#132f55d9;color:#fff3ca;font:700 .68rem/1 system-ui;letter-spacing:.05em;text-transform:uppercase;box-shadow:0 2px 7px #0008}
 .scene-sprite{background-repeat:no-repeat;background-position:var(--sprite-x) var(--sprite-y);filter:drop-shadow(0 5px 5px #0008);aspect-ratio:1;pointer-events:none}
 .sheet-characters{background-image:url('assets/encounter-characters.png');background-size:400% 400%}
 .sheet-props{background-image:url('assets/encounter-props.png');background-size:300% 300%}

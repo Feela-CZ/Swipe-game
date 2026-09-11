@@ -153,7 +153,7 @@ function mapView(){
  }
  const markers=D.areas.map((p,i)=>'<button class="map-pin '+(i>=s.unlocked?'locked':'')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+'" data-action="area" data-value="'+i+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled':'')+' aria-label="'+esc(p.name)+(i>=s.unlocked?' · zamčeno':'')+'"><b>'+(s.records[i].clears?'⚑':i<s.unlocked?'✦':'•')+'</b><span>'+p.short+'</span></button>').join('');
  const alert=s.pending.length?btn('Nový nález','loot-show','','map-loot'):(s.run?btn('Pokračovat','tab','road','map-loot'):'' );
- return '<section class="map-screen"><header class="map-episode-heading"><small>EPIZODA I</small><h2>Údolí posledního světla</h2></header>'+
+ return '<section class="map-screen"><header class="map-episode-heading"><small>EPIZODA I</small><h2>'+esc(D.chapter.mapTitle)+'</h2></header>'+
  '<div class="world-map"><div class="map-canvas"><svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">'+paths+'</svg>'+markers+'</div>'+alert+btn('<span aria-hidden="true">🔥</span><small>Tábor</small>','camp-menu','','camp-fab')+'</div></section>';
 }
 function recipeCard(area){
@@ -169,10 +169,12 @@ function roadView(){
  const s=game.state,r=s.run;
  if(!r)return '<section class="road-screen"><div class="screen-scroll">'+heading('VÝPRAVA','Cesta čeká')+(s.lastReport?reportCard(s.lastReport):'<section class="panel"><p>Vyber místo na mapě a vydej se po stopě královy kletby.</p></section>')+'</div><footer class="action-dock">'+btn('Otevřít mapu','tab','map','primary wide')+'</footer></section>';
  const p=D.areas[r.area],b=r.battle,n=s.notice,previous=r.lastScene||r.rooms[Math.max(0,r.index-1)],room=n?game.describe(previous):game.room(),t=b?.tactic;
- const phase=Math.min(4,Math.floor(r.index/r.rooms.length*5));
- const progress='<div class="expedition-progress"><div class="progress-label"><span>'+['Vstup do oblasti','Za hlídkami','Hlubší cesta','Na stopě cíle','Poslední úsek'][phase]+'</span><b>'+Math.round(r.index/r.rooms.length*100)+' %</b></div>'+health(r.index,r.rooms.length,'xp')+'</div>';
+ const phase=Math.min(4,Math.floor(r.index/r.rooms.length*5)),towerFloor=r.area===0?Math.min(2,Math.floor(r.index/r.rooms.length*3)):-1;
+ const progressLabels=r.area===0?['Brána věže','Dolní schodiště','Strojovna výtahu','Horní ochoz','Zvonice']:['Vstup do oblasti','Za hlídkami','Hlubší cesta','Na stopě cíle','Poslední úsek'];
+ const progress='<div class="expedition-progress"><div class="progress-label"><span>'+progressLabels[phase]+'</span><b>'+Math.round(r.index/r.rooms.length*100)+' %</b></div>'+health(r.index,r.rooms.length,'xp')+'</div>';
  const art=RPGScenes.encounter(room,r,b||(n?r.lastFoe:null)),effects=game.combatEffects();
- const stage='<section class="stage scene-'+p.scene+' '+(b?'fighting ':'')+(motion?'motion-'+motion:'')+'" aria-label="'+esc(p.name)+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+
+ const towerClass=towerFloor>=0?' tower-floor-'+towerFloor:'',towerLabel=towerFloor>=0?['Vstupní síň','Strojovna výtahu','Zvonice a pracovna'][towerFloor]:'';
+ const stage='<section class="stage scene-'+p.scene+towerClass+' '+(b?'fighting ':'')+(motion?'motion-'+motion:'')+'" aria-label="'+esc(p.name)+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+(towerLabel?'<small class="stage-location">'+towerLabel+'</small>':'')+
   sceneSprite(art,'encounter-token')+
  (b?'<div class="battle-bonuses"><div class="hero-bonuses">'+effects.hero.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div><div class="enemy-bonuses">'+effects.enemy.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></div><div class="enemy-meter"><strong>'+esc(b.name)+'</strong>'+health(b.hp,b.maxHp,'enemy')+'<small>'+b.hp+' / '+b.maxHp+'</small></div>':'')+
   sceneSprite({...RPGScenes.hero,label:s.heroName||'Dobrodruh'},'hero-token')+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
@@ -253,7 +255,7 @@ function renderDialog(){
   body='<div class="welcome-content"><h2 id="dialog-title">Quest Happens</h2><img src="assets/sir-smik.webp" alt="Tvůj dobrodruh"><label for="hero-name">Jak se jmenuješ?</label><input id="hero-name" autocomplete="off" maxlength="24" value="'+esc(nameDraft)+'" aria-describedby="name-hint"><small id="name-hint">2–24 znaků. Návrh můžeš přepsat.</small>'+btn(s.run||s.level>1?'Pokračovat v příběhu':'Vstoupit do příběhu','name-confirm','','primary wide')+'</div>';
  }else if(!front&&s.storyEvents.length&&!p&&!dialog){
   const e=s.storyEvents[0],answered=e.response!==undefined;
-  body='<div class="story-copy"><small class="eyebrow">KAPITOLA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>'+esc(s.heroName)+': '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
+  body='<div class="story-copy"><small class="eyebrow">EPIZODA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>'+esc(s.heroName)+': '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
  }else if(!front&&p&&!dialog){
   if(p.type==='chest')body='<div class="chest-art scene-5"><div class="scene-art"></div>'+sceneSprite(RPGScenes.encounter({kind:'chest'},{area:0},null),'chest-token')+'</div><small class="eyebrow">NALEZENÁ TRUHLA</small><h2 id="dialog-title">'+['Ošoupaná truhla','Železná truhla','Runová truhla'][p.tier]+'</h2><p>'+esc(p.note)+'</p><p class="muted">Uvnitř může být výbava. I bez předmětu získáš zlato a esenci.</p>'+btn('Otevřít truhlu','chest','','primary wide');
   else body='<small class="eyebrow">'+(p.previewOnly?'SPOJENÍ DOKONČENO':'NOVÝ NÁLEZ')+'</small><h2 id="dialog-title">'+(p.previewOnly?'Sloučený předmět':'Nalezený předmět')+'</h2>'+lootCard(p.item)+genes(p.item)+compare(p.item)+'<p class="muted">'+esc(p.note)+'</p>'+
@@ -285,7 +287,7 @@ function renderDialog(){
  }else if(dialog?.type==='report'){
   body='<h2 id="dialog-title">Poslední výprava</h2>'+(s.lastReport?reportCard(s.lastReport):'<p>Zatím nemáš dokončenou výpravu.</p>')+btn('Zavřít','close','','primary wide');
  }else if(dialog?.type==='chapter'){
-  body='<h2 id="dialog-title">'+D.chapter.title+'</h2><p>Král drží Pomezí v nekončícím večeru. Osvoboď jeho poddané a zlom Korunu posledního světla.</p><ol class="chapter-list">'+D.areas.map((p,i)=>'<li><strong>'+(s.records[i].clears?'✓ ':i<s.unlocked?'→ ':'')+p.name+'</strong><p>'+(s.records[i].clears?'Osvobozeno. Dostupné ozvěny pro další kořist.':i<s.unlocked?p.quest:'Pokračování se odkryje po předchozí výpravě.')+'</p></li>').join('')+'</ol>'+btn('Zpět na mapu','close','','primary wide');
+  body='<h2 id="dialog-title">'+D.chapter.title+'</h2><p>'+esc(D.chapter.summary)+'</p><ol class="chapter-list">'+D.areas.map((p,i)=>'<li><strong>'+(s.records[i].clears?'✓ ':i<s.unlocked?'→ ':'')+p.name+'</strong><p>'+(s.records[i].clears?'Osvobozeno. Dostupné ozvěny pro další kořist.':i<s.unlocked?p.quest:'Pokračování se odkryje po předchozí výpravě.')+'</p></li>').join('')+'</ol>'+btn('Zpět na mapu','close','','primary wide');
  }else if(dialog?.type==='menu'){
   body='<h2 id="dialog-title">Menu</h2>'+btn('Uložit hru','save-menu','','secondary wide')+btn('Settings','sound','','secondary wide')+btn('Uložit a hlavní menu','main-menu','','secondary wide')+(s.run?btn('Ukončit výpravu','retreat-confirm','','secondary wide',!!s.run.battle||!!s.pending.length):'')+btn('Zpět do hry','close','','primary wide');
  }else if(dialog?.type==='save-slots'){

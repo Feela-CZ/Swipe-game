@@ -111,6 +111,15 @@ const regional=[
  ['chest','Důlní skříňka','Skříňka zůstala zamčená, ale panty jsou nalomené. Na dně vozíku leží mince.'],
  ['aid','Horník na odchodu','Horník chce odvést rodinu z dolu. Chybí mu osm zlatých a jeho bratr vozí proviant.']
  ],[
+ ['clash','Strážce krystalů','Strážný hlídá komoru, kde modré krystaly polykají světlo. Za jeho zády pokračuje nákladní stezka.'],
+ ['ambush','Kuše mezi ozvěnami','Cvaknutí tětivy se vrací ze tří směrů. Skutečný střelec se krčí za nejtmavším krystalem.'],
+ ['toll','Poplatek za promarněný čas','Písař žádá devět zlatých za hodiny, které jsi v jeskyni ještě nestihl promarnit.'],
+ ['hunt','Krysa s přesýpacími hodinami','Krysa táhne malé přesýpací hodiny. Písek v nich padá vzhůru a měšec vedle nich úplně obyčejně cinká.'],
+ ['hazard','Prasklý časový krystal','Krystal před tebou praská v pravidelném rytmu. Okraj komory je bezpečnější, ale plný ostrých střepů.'],
+ ['respite','Tichá kapsa','V malé dutině se ozvěna nevrací. Leží tu obvazy horníků a několik minut skutečného klidu.'],
+ ['chest','Schránka v modrém kameni','Do krystalu zarostla zamčená schránka. Uvolněný okraj řeže a kolem leží několik mincí.'],
+ ['aid','Horník bez včerejška','Horník si nepamatuje včerejší večer, ale cestu ven ano. Za osm zlatých se dostane domů a pošle ti zásoby.']
+ ],[
  ['clash','Palácová stráž','Strážný stojí v chodbě pod královým portrétem. Za závěsem vede služební průchod.'],
  ['ambush','Balkonový střelec','Střelec na galerii právě nabíjí. Sloupy dole poskytují trochu krytu.'],
  ['toll','Vstup do předsálí','Komorní stráž vyžaduje devět zlatých. Prý nejde o úplatek, ale o rychlejší vyřízení.'],
@@ -134,5 +143,5 @@ const encounters=[];
 for(const [kind,group] of Object.entries(groups))group.rows.forEach(([title,text],i)=>encounters.push({id:'event-'+kind+'-'+i,kind,title,text,choices:group.choices,hints:['','']}));
 regional.forEach((rows,area)=>rows.forEach(([kind,title,text],i)=>encounters.push({id:'local-'+area+'-'+i,area,kind,title,text,choices:groups[kind].choices,hints:['','']})));
 D.encounters=encounters;D.encounterById=Object.fromEntries(encounters.map(x=>[x.id,x]));
-D.expeditionLengths=[55,65,75,85,95];
+D.expeditionLengths=[55,65,75,82,90,100];
 })();

@@ -17,7 +17,7 @@ export default {
    if(request.headers.get('sec-fetch-site')==='cross-site'||!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'Neplatný požadavek.'},403);
    const raw=await request.text();if(raw.length>500000)return json({error:'Pozice je příliš velká.'},413);
    const body=JSON.parse(raw),s=body.state;
-   if(!slots.has(body.slot)||!Number.isSafeInteger(body.revision)||body.revision<0||!s||s.version!==3||!Number.isSafeInteger(s.level)||s.level<1||!Array.isArray(s.inventory)||!Array.isArray(s.pending)||!s.equipped||!s.growth||!s.settings||typeof s.heroName!=='string')return json({error:'Pozice nemá podporovaný formát.'},400);
+   if(!slots.has(body.slot)||!Number.isSafeInteger(body.revision)||body.revision<0||!s||![3,4].includes(s.version)||!Number.isSafeInteger(s.level)||s.level<1||!Array.isArray(s.inventory)||!Array.isArray(s.pending)||!s.equipped||!s.growth||!s.settings||typeof s.heroName!=='string')return json({error:'Pozice nemá podporovaný formát.'},400);
    const now=new Date().toISOString(),payload=JSON.stringify(s);
    const result=body.revision===0
     ?await env.DB.prepare('INSERT INTO game_saves (owner, slot, payload, revision, updated_at) VALUES (?, ?, ?, 1, ?) ON CONFLICT(owner, slot) DO NOTHING').bind(owner,body.slot,payload,now).run()

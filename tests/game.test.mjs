@@ -57,6 +57,15 @@ test('legacy save migration preserves points, items, currencies, outstanding loo
  assert.equal(g.state.inventory.length,1);assert.equal(g.state.equipped.head.kind,'helm');assert.equal(g.state.pending[0].item.kind,'orb');
  assert.equal(g.state.unlocked,2);assert.ok(Number.isFinite(g.stats().damageMax));
 });
+test('version 3 saves keep castle and mountain progress after cave insertion',()=>{
+ const raw=plain(fresh().state);raw.version=3;raw.records=raw.records.slice(0,5);raw.records[3]={clears:2,highest:1,marks:3};raw.records[4]={clears:1,highest:0,marks:2};raw.unlocked=5;raw.selectedArea=4;
+ const g=new Game(raw,seedRng(7));assert.equal(g.state.version,4);assert.equal(g.state.records.length,6);assert.equal(g.state.records[3].clears,1);
+ assert.equal(g.state.records[4].clears,2);assert.equal(g.state.records[5].clears,1);assert.equal(g.state.selectedArea,5);assert.equal(g.state.unlocked,6);
+});
+test('episode chain includes the bridge detour, cave and final mountain oath',()=>{
+ assert.equal(D.areas.length,6);assert.equal(D.areas[3].id,'stolen-hours-cave');assert.equal(D.chapter.after.length,6);
+ assert.match(D.chapter.after[0].text,/Mostmistr Brumla/);assert.match(D.chapter.after[0].closing,/lese/);assert.match(D.chapter.after[2].closing,/Jeskyně/);assert.match(D.chapter.after[5].title,/soumrak/);
+});
 test('ring choice grants a real ring; returning it grants protection',()=>{
  for(const side of ['left','right']){
   const g=fresh();g.start();g.state.run.rooms=['well','boss'];g.choose(side);
@@ -130,8 +139,8 @@ test('all four signatures activate their advertised combat effect',()=>{
  g.state.equipped={relic:g.signature('amulet')};g.state.hp=g.stats().maxHp;g.heal(15,true);assert.equal(g.state.run.shield,15);
 });
 test('boss scripts remain binary, pause clocks, then resolve in every area',()=>{
- for(let area=0;area<5;area++){
-  const g=fresh(5+area);g.state.unlocked=5;g.start(area,0);g.state.hp=10000;g.state.run.index=6;g.fight('boss',true);g.step();
+ for(let area=0;area<D.areas.length;area++){
+  const g=fresh(5+area);g.state.unlocked=D.areas.length;g.start(area,0);g.state.hp=10000;g.state.run.index=6;g.fight('boss',true);g.step();
   assert.equal(g.state.run.battle.tactic.choices.length,2);const hp=g.state.run.battle.hp;g.step();assert.equal(g.state.run.battle.hp,hp);g.tactic('left');
   assert.equal(g.state.run.battle.tactic,null);
  }
@@ -140,6 +149,7 @@ test('region bosses use distinct mechanics affected by preparation',()=>{
  const bell=fresh();bell.start();bell.fight('boss',true);bell.state.run.battle.turn='enemy';bell.random=()=>.99;bell.enemy();assert.ok(bell.state.run.battle.log.some(x=>x.text.includes('Posílený útok')));
  const roots=fresh();roots.state.unlocked=2;roots.start(1);roots.fight('boss',true);roots.state.run.battle.hp-=20;roots.state.run.battle.round=2;roots.random=()=>.99;roots.enemy();assert.ok(roots.state.run.battle.log.some(x=>x.text.includes('Kořeny vrátily')));
  const shell=fresh();shell.state.unlocked=3;shell.state.growth.might=30;shell.start(2);shell.fight('boss',true);shell.step();shell.tactic('right');assert.ok(shell.state.run.battle.shellBroken);
+ const echo=fresh();echo.state.unlocked=4;echo.start(3);echo.fight('boss',true);echo.state.run.battle.lastHit=40;echo.state.run.battle.round=2;echo.state.run.battle.turn='enemy';echo.random=()=>.99;echo.enemy();assert.ok(echo.state.run.battle.log.some(x=>x.text.includes('Ozvěna posledního úderu')));
 });
 test('preview-only loot cannot duplicate a merged item',()=>{
  const g=fresh();g.state.pending=[{type:'item',item:g.item('sword'),previewOnly:true}];assert.equal(g.loot('take'),false);assert.equal(g.state.inventory.length,0);
@@ -148,14 +158,14 @@ test('death preserves banked possessions and resets the run safely',()=>{
  const g=fresh();g.start();g.state.gold=100;g.state.potions=0;g.state.run.gold=20;g.fight('boss',true);g.state.hp=1;g.receive(999);g.lose();
  assert.equal(g.state.gold,97);assert.equal(g.state.run,null);assert.ok(g.state.hp>0);assert.equal(g.state.lastReport.win,false);
 });
-test('five regions plus repeatable challenge progression are completable with appropriate equipment',()=>{
+test('six regions plus repeatable challenge progression are completable with appropriate equipment',()=>{
  const g=fresh(88);
- for(let area=0;area<5;area++){
+ for(let area=0;area<D.areas.length;area++){
   g.state.unlocked=Math.max(g.state.unlocked,area+1);g.state.growth={might:area*5,grit:area*4,agility:area*3,intelligence:2,luck:2};
   for(const kind of ['sword','helm','mail','boots','gauntlets','shield','ring','amulet'])g.state.equipped[D.itemById[kind].slot]=g.item(kind,'rare',1+area*2,[['damage',2],['armor',4],['vitality',5]]);
   g.state.potions=4;g.rest();assert.ok(g.start(area));const result=complete(g,{equip:true,spend:true});assert.ok(result.win,'region '+area);assert.equal(g.state.records[area].marks,2);
  }
- assert.ok(g.start(4,1));assert.equal(g.state.run.challenge,1);
+ assert.ok(g.start(D.areas.length-1,1));assert.equal(g.state.run.challenge,1);
 });
 test('luck equipment is inactive in inventory and contributes to total, drops and gold when equipped',()=>{
  const g=fresh();g.state.growth.luck=2;
@@ -174,7 +184,7 @@ test('all displayed breakdowns reconcile, including stacking, rounding and caps'
  assert.equal(b.total.crit,65);assert.equal(b.total.absorb,40);assert.equal(b.total.haste,65);
 });
 test('forest choice really disables roots and regional scenes do not reuse tower interiors',()=>{
- const g=fresh();g.state.unlocked=5;g.start(1);g.state.run.rooms=['fork','boss'];
+ const g=fresh();g.state.unlocked=D.areas.length;g.start(1);g.state.run.rooms=['fork','boss'];
  assert.ok(g.room().text.includes('kořeny'));g.choose('left');assert.ok(g.state.run.flags.silent);g.state.notice=null;
  g.fight('boss');const b=g.state.run.battle;b.hp-=30;b.round=2;g.random=()=>.99;const hp=b.hp;g.enemy();assert.equal(b.hp,hp);
  assert.ok(!g.describe('camp').text.includes('pera'));assert.ok(g.describe('camp').text.includes('jelena'));
@@ -189,10 +199,10 @@ test('chapter introduction is idempotent, interactive and survives save/load',()
  const saved=new Game(plain(g.state));assert.equal(saved.state.storyEvents[0].response,1);assert.ok(saved.closeStory());saved.introduceChapter();assert.equal(saved.state.storyEvents.length,0);assert.ok(saved.state.flags.chapterIntroSeen);
 });
 test('each first victory advances its chapter beat, replays do not resurrect the villain',()=>{
- for(let area=0;area<5;area++){
-  const g=fresh();g.state.unlocked=5;g.start(area);g.fight('boss');g.win();
-  const event=g.state.storyEvents[0];assert.equal(event.id,'clear-'+area);assert.equal(event.speaker,D.chapter.villain);assert.equal(event.replies.length,2);
-  if(area===3)assert.ok(g.state.notice.text.includes('uprchl'));if(area===4)assert.ok(g.state.notice.text.includes('vzdal'));
+ for(let area=0;area<D.areas.length;area++){
+  const g=fresh();g.state.unlocked=D.areas.length;g.start(area);g.fight('boss');g.win();
+  const event=g.state.storyEvents[0];assert.equal(event.id,'clear-'+area);assert.equal(event.speaker,D.chapter.after[area].speaker);assert.equal(event.replies.length,2);
+  if(area===4)assert.ok(g.state.notice.text.includes('uprchl'));if(area===5)assert.ok(g.state.notice.text.includes('vzdal'));
   resolvePending(g);g.state.storyEvents=[];g.start(area);assert.ok(g.state.run.replay);g.fight('boss');g.win();assert.equal(g.state.storyEvents[0].id,'echo-'+area);
  }
 });

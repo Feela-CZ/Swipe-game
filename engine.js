@@ -35,7 +35,7 @@ class Game {
   equipped.weapon=this.item('dagger','common',1,[['damage',2]]);
   equipped.body=this.item('cloak','common',1,[['vitality',8]]);
   equipped.feet=this.item('boots','common',1,[['evasion',3]]);
-  return {version:3,heroName:'',level:1,xp:0,points:0,levelNotice:null,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
+  return {version:4,heroName:'',level:1,xp:0,points:0,levelNotice:null,growth:{might:0,grit:0,agility:0,intelligence:0,luck:0},
    gold:35,essence:12,potions:3,hp:120,equipped,inventory:[],capacity:20,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
    unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1},lastReport:null,
@@ -65,22 +65,32 @@ class Game {
   for(const item of raw.inventory||[]){const it=sanitize(item);if(it)s.inventory.push(it);}
   s.capacity=20; // Legacy overflow is kept, but no new items fit until below the limit.
   s.journal=Array.isArray(raw.journal)?raw.journal.slice(-60).map(narrative):[];
-  s.flags=raw.version===3?{...raw.flags}:{};
+  s.flags=raw.version===3||raw.version===4?{...raw.flags}:{};
   s.storyEvents=Array.isArray(raw.storyEvents)?copy(raw.storyEvents).filter(x=>x&&typeof x.text==='string'&&Array.isArray(x.replies)&&Array.isArray(x.answers)).slice(0,20):[];
-  if(raw.version===3){
-   s.records=D.areas.map((_,i)=>({clears:integer(raw.records?.[i]?.clears),highest:Math.max(-1,Math.floor(Number(raw.records?.[i]?.highest??-1))),marks:integer(raw.records?.[i]?.marks)}));
-   s.unlocked=clamp(integer(raw.unlocked,1),1,D.areas.length);
-   s.selectedArea=clamp(integer(raw.selectedArea),0,s.unlocked-1);
+  if(raw.version===3||raw.version===4){
+   const oldEpisode=raw.version===3&&Array.isArray(raw.records)&&raw.records.length===5;
+   const sourceIndex=i=>oldEpisode?(i===3?-1:i>3?i-1:i):i;
+   s.records=D.areas.map((_,i)=>{const source=raw.records?.[sourceIndex(i)];return {clears:integer(source?.clears),highest:Math.max(-1,Math.floor(Number(source?.highest??-1))),marks:integer(source?.marks)};});
+   const oldUnlocked=integer(raw.unlocked,1);
+   s.unlocked=clamp(oldEpisode?(oldUnlocked<=3?oldUnlocked:oldUnlocked+1):oldUnlocked,1,D.areas.length);
+   if(oldEpisode&&oldUnlocked>=4)s.records[3]={clears:1,highest:0,marks:0};
+   const mappedArea=oldEpisode&&integer(raw.selectedArea)>=3?integer(raw.selectedArea)+1:integer(raw.selectedArea);
+   s.selectedArea=clamp(mappedArea,0,s.unlocked-1);
    s.selectedChallenge=clamp(integer(raw.selectedChallenge),0,s.records[s.selectedArea].highest+1);
    s.settings={sound:raw.settings?.sound===true,volume:Number.isFinite(raw.settings?.volume)?clamp(raw.settings.volume,0,1):.55,speed:raw.settings?.speed===2?2:1};
-   s.lastReport=raw.lastReport||null;s.metrics={...s.metrics,...raw.metrics};
+   s.lastReport=raw.lastReport?copy(raw.lastReport):null;s.metrics={...s.metrics,...raw.metrics};
    s.run=raw.run&&D.areas[raw.run.area]&&Array.isArray(raw.run.rooms)?copy(raw.run):null;
    s.pending=(raw.pending||[]).map(p=>p.type==='item'?{...p,item:sanitize(p.item)}:copy(p)).filter(p=>p.type!=='item'||p.item);
+   if(oldEpisode){
+    if(s.lastReport?.area>=3)s.lastReport.area++;
+    if(s.run?.area>=3)s.run.area++;
+    for(const pending of s.pending)if(Number.isInteger(pending.area)&&pending.area>=3)pending.area++;
+   }
    s.notice=raw.notice?{...raw.notice,text:narrative(raw.notice.text)}:null;
   }else{
    const completed=raw.map?.completed||[];
    s.records.forEach((r,i)=>{if(completed.includes(D.areas[i].id)){r.clears=1;r.highest=0;}});
-   s.unlocked=clamp(Math.max(1,(raw.map?.unlocked||[]).length),1,5);
+   s.unlocked=clamp(Math.max(1,(raw.map?.unlocked||[]).length),1,D.areas.length);
    if(raw.pendingLoot?.item){const it=sanitize(raw.pendingLoot.item);if(it)s.pending.push({type:'item',item:it,note:'Nález z předchozí výpravy.'});}
    if(raw.pendingChest)s.pending.push({type:'chest',tier:clamp(integer(raw.pendingChest.tier),0,2),ilvl:1,note:'Truhla z předchozí výpravy.'});
    this.note('Nová kapitola','Výbava, měny a rozdělené body jsou zachované. Původní rozehraná cesta skončila; můžeš vyrazit do nové výpravy.');
@@ -142,7 +152,7 @@ class Game {
   const intro=copy(D.chapter.intro);
   if(s.records.some(r=>r.clears)){
    const next=s.records.findIndex(r=>!r.clears);intro.title='Jak to začalo';intro.narration='Připomenutí začátku příběhu. Tvoje výbava i vyčištěná místa zůstávají zachované.';
-   intro.closing=next<0?'Pomezí už jsi osvobodil. V ozvěnách kletby můžeš dál hledat výbavu a zvyšovat hrozbu.':D.areas[next].quest;
+   intro.closing=next<0?'Údolí už jsi osvobodil. V ozvěnách kletby můžeš dál hledat výbavu a zvyšovat hrozbu.':D.areas[next].quest;
   }
   s.storyEvents.unshift(intro);
  }
@@ -157,9 +167,9 @@ class Game {
  chapterReport(area,result,first=false){
   if(!D.chapter)return;
   const s=this.state;let event;
-  if(result==='win'&&first)event={...copy(D.chapter.after[area]),id:'clear-'+area,speaker:D.chapter.villain};
-  else if(result==='win')event={id:'echo-'+area,title:'Ozvěna je utišená',speaker:'Správce tábora Otmar',text:'„Pečeť ještě držela otisk staré kletby. Skutečné místo zůstává osvobozené; porazil jsi jen jeho ozvěnu.“',narration:'Výbava a suroviny, které kletba spoutala, ti zůstávají.',replies:['Příště zkusím vyšší hrozbu.','Teď si prohlédnu výbavu.'],answers:['„Silnější ozvěna, silnější kořist. Pořád stejný královský nepořádek.“','„Tentokrát se při převlékání nikdo nepočítá do pracovní doby.“'],closing:s.records.every(x=>x.clears)?'Příběh Pomezí je dokončený. Další výpravy jsou dobrovolné výzvy pro lepší kořist.':'Další krok hlavního příběhu najdeš na mapě. Již vyčištěná místa můžeš opakovat.'};
-  else event={id:result+'-'+area,title:result==='retreat'?'Návrat není konec':'Zpátky u ohně',speaker:'Správce tábora Otmar',text:result==='retreat'?'„Dobře, že ses vrátil po svých. Cesta počká.“':s.run?.replay?'„Vytáhli jsme tě z ozvěny. Skutečné Pomezí se tím nevrátilo pod kletbu.“':'„Našli jsme tě u cesty. Král vyhrál tenhle střet, ne celou válku.“',narration:'Získané předměty a zkušenosti ti zůstaly. Odpočiň si, zkontroluj výbavu a doplň lektvary.',replies:['Vrátím se připravenější.','Nejdřív potřebuji lepší výbavu.'],answers:['„A já zatím připravím místo u ohně.“','„Výbavu prodává kupec. Ve vyčištěných místech můžeš hledat další kořist v ozvěnách kletby.“'],closing:'Nedokončenou výpravu začneš příště od vstupu. Hlavní příběh se neposunul.'};
+  if(result==='win'&&first){const beat=copy(D.chapter.after[area]);event={...beat,id:'clear-'+area,speaker:beat.speaker||D.chapter.villain};}
+  else if(result==='win')event={id:'echo-'+area,title:'Ozvěna je utišená',speaker:'Správce tábora Otmar',text:'„Pečeť ještě držela otisk staré kletby. Skutečné místo zůstává osvobozené; porazil jsi jen jeho ozvěnu.“',narration:'Výbava a suroviny, které kletba spoutala, ti zůstávají.',replies:['Příště zkusím vyšší hrozbu.','Teď si prohlédnu výbavu.'],answers:['„Silnější ozvěna, silnější kořist. Pořád stejný královský nepořádek.“','„Tentokrát se při převlékání nikdo nepočítá do pracovní doby.“'],closing:s.records.every(x=>x.clears)?'Příběh údolí je dokončený. Další výpravy jsou dobrovolné výzvy pro lepší kořist.':'Další krok hlavního příběhu najdeš na mapě. Již vyčištěná místa můžeš opakovat.'};
+  else event={id:result+'-'+area,title:result==='retreat'?'Návrat není konec':'Zpátky u ohně',speaker:'Správce tábora Otmar',text:result==='retreat'?'„Dobře, že ses vrátil po svých. Cesta počká.“':s.run?.replay?'„Vytáhli jsme tě z ozvěny. Skutečné údolí se tím nevrátilo pod kletbu.“':'„Našli jsme tě u cesty. Král vyhrál tenhle střet, ne celou válku.“',narration:'Získané předměty a zkušenosti ti zůstaly. Odpočiň si, zkontroluj výbavu a doplň lektvary.',replies:['Vrátím se připravenější.','Nejdřív potřebuji lepší výbavu.'],answers:['„A já zatím připravím místo u ohně.“','„Výbavu prodává kupec. Ve vyčištěných místech můžeš hledat další kořist v ozvěnách kletby.“'],closing:'Nedokončenou výpravu začneš příště od vstupu. Hlavní příběh se neposunul.'};
   if(first&&area===0)event.narration+=s.run?.flags.scribe?' Osvobozený písař ti pomohl najít správný příkaz.':' Klíč od pokladnice otevírá i zásuvku s královým příkazem.';
   s.storyEvents.push(event);
  }
@@ -210,7 +220,7 @@ class Game {
  describe(id){
   if(D.encounterById[id])return D.encounterById[id];
   const r=this.state.run,f=r.flags,area=D.areas[r.area];
-  const places=[['boční chodbě','na schodech','Přede dveřmi pracovny slyšíš šustění účtů. Výběrčí je uvnitř.'],['houští mezi stromy','na kraji mýtiny','Za houštím zahlédneš jelena. Kolem jeho nohou pulzují kořeny.'],['opuštěné štole','u důlní výztuže','Z poslední štoly se ozývají údery krumpáče. Předák ještě neskončil.'],['služební chodbě','před trůnním sálem','Král diktuje další pracovní vyhlášku. Za dveřmi se dá ještě nabrat dech.'],['skalní rozsedlině','pod skalním převisem','U svatyně čeká král. Záblesky jeho koruny otřásají skalní stěnou.']][r.area];
+  const places=[['boční chodbě','ve zvonici','Nad posledním schodištěm slyšíš šustění účtů. Výběrčí je ve zvonici.'],['houští mezi stromy','na kraji mýtiny','Za houštím zahlédneš jelena. Kolem jeho nohou pulzují kořeny.'],['opuštěné štole','u důlní výztuže','Z poslední štoly se ozývají údery krumpáče. Předák ještě neskončil.'],['krystalové chodbě','v tiché dutině','Modré krystaly pulsují kolem obrovského kokonu. Časomol se probouzí.'],['služební chodbě','před trůnním sálem','Král diktuje další pracovní vyhlášku. Za dveřmi se dá ještě nabrat dech.'],['skalní rozsedlině','pod skalním převisem','U svatyně čeká král. Záblesky jeho koruny otřásají skalní stěnou.']][r.area];
   const defs={
    supplies:['supplies','Zásobovací stanoviště',f.favors?'Zásobovač tě poznává podle vzkazu od lidí, kterým jsi cestou pomohl. Odkládá pro tebe balík obvazů.':'U zásobovacího stanoviště zbývá několik obvazů. Zásobovač nabízí ošetření za deset zlatých.',['Přijmout ošetření','Pokračovat bez zastávky'],['','']],
    gate:['gate','Za branou','Strážný chce vstupné. Na směnovém lístku má přeškrtnuté tři dny.',['Zaplatit 8 zlata','Trvat na průchodu'],['Mince nebo rozhovor?','Ruka mu sklouzla ke zbrani.']],
@@ -221,9 +231,9 @@ class Game {
    bell:['bell',f.scribe?'Slíbená pomoc':'Zvon a pokladnice',f.scribe?'Písař čeká u lana. „Trezor, nebo ticho? Na obojí nemáme čas.“':'Za schody leží pokladnice. Nad hlavou se houpe poplašný zvon.',['Umlčet zvon','Otevřít pokladnici'],['Někdo si toho všimne až pozdě.','Klíč v kapse by mohl pasovat.']],
    patrol:['patrol','Hlídka na cestě','Cestu hlídá ozbrojený strážný. V '+places[0]+' zahlédneš velkou krysu s ukradeným měšcem.',['Dát se za krysou','Postavit se strážnému'],['Krysa hledá cestu k útěku.','Strážný si zapíná přilbu.']],
    camp:['camp','Chvíle na přípravu',f.courier?'Posel ti '+places[1]+' nechal proviant. „Expresní doručení. Tentokrát zdarma.“':places[2],['Odpočinout si','Připravit léčku'],['Ošetřit rány a srovnat dech.','Připravit první úder ze zálohy.']],
-   boss:['boss',area.boss,(r.replay?'Před tebou ožívá otisk někdejšího střetu. ':'')+(r.area===0?(f.silent?'Zvon mlčí. Výběrčí sevře kladivo. „Král se o tom dozví.“':'Zvon se rozezní. Výběrčí přivolává stráže: „Z králova rozkazu nikdo neprojde!“'):[null,'Jelen stojí před výstupem z háje. Z pečeti na jeho krku zazní král: „Cesta je uzavřena.“ Zvíře sklopí paroží.','Předák zvedne krumpáč. Pod kamenným krunýřem ještě poznáváš člověka. Na zdi svítí králův příkaz: „Těžba bez přestávky.“','Král vstane z trůnu. „Věž, les i doly. To jste mi tu udělal pěkný nepořádek.“ Koruna mu na čele rozžehne zlaté světlo.','Král stojí u oltáře pod skalní stěnou. „Ještě není hotovo!“ Koruna rozvibruje kameny nad stezkou.'][r.area]),['Zkontrolovat výbavu','Vstoupit do boje'],['Můžeš se vrátit k přípravě.','Za vítězství čeká předmět i materiál.']],
+   boss:['boss',area.boss,(r.replay?'Před tebou ožívá otisk někdejšího střetu. ':'')+(r.area===0?(f.silent?'Zvon mlčí. Výběrčí sevře kladivo. „Král se o tom dozví.“':'Zvon se rozezní. Výběrčí přivolává stráže: „Z králova rozkazu nikdo neprojde!“'):[null,'Jelen stojí před výstupem z háje. Z pečeti na jeho krku zazní král: „Cesta je uzavřena.“ Zvíře sklopí paroží.','Předák zvedne krumpáč. Pod kamenným krunýřem ještě poznáváš člověka. Na zdi svítí králův příkaz: „Těžba bez přestávky.“','Velký Časomol roztáhne křídla nad krystaly. Z pečeti na kokonu zazní: „Zadržený čas je majetkem koruny.“','Král vstane z trůnu. „Věž, les, důl i jeskyně. To jste mi tu udělal pěkný nepořádek.“ Koruna mu na čele rozžehne zlaté světlo.','Král stojí u oltáře pod skalní stěnou. „Ještě není hotovo!“ Koruna rozvibruje kameny nad stezkou.'][r.area]),['Zkontrolovat výbavu','Vstoupit do boje'],['Můžeš se vrátit k přípravě.','Za vítězství čeká předmět i materiál.']],
    trail:['trail',area.name,'Stezka se dělí. Na jedné větvi leží čerstvé stopy. Z druhé se ozývá napínání tětivy.',['Sledovat stopy','Obejít cestu po svahu'],['Někdo něco ztratil.','Střelec už si vybírá místo.']],
-   fork:r.area===1?['fork','Kořeny přes pěšinu','Silné kořeny vedou od starého dubu k jelenově mýtině. Pod nimi uvízla truhla. Můžeš prosekat pěšinu, nebo vyprostit truhlu.',['Přesekat kořeny','Vytáhnout truhlu'],['Kořeny pulzují stejným světlem jako jelen.','Víko vězí pod těžkou větví.']]:['fork','Zavalená zkratka','Úzký průchod vede za hlídku. Vedle něj leží truhla zavalená kamením. Uvolnění průchodu zabere čas; vyproštění truhly nadělá hluk.',['Uvolnit průchod','Vyprostit truhlu'],['Průchod vede k místu posledního střetu.','Kamení se bude sypat do cesty.']],
+   fork:r.area===1?['fork','Kořeny přes pěšinu','Silné kořeny vedou od starého dubu k jelenově mýtině. Pod nimi uvízla truhla. Můžeš prosekat pěšinu, nebo vyprostit truhlu.',['Přesekat kořeny','Vytáhnout truhlu'],['Kořeny pulzují stejným světlem jako jelen.','Víko vězí pod těžkou větví.']]:r.area===3?['fork','Komora ozvěny','Dva krystaly vracejí každý zvuk i úder zpět do chodby. Jeden lze rozladit; v dutině druhého je schránka.',['Rozbít rezonující krystal','Otevřít schránku v dutině'],['Tón krystalu drží ozvěnu pohromadě.','Víko je zarostlé hluboko v kameni.']]:['fork','Zavalená zkratka','Úzký průchod vede za hlídku. Vedle něj leží truhla zavalená kamením. Uvolnění průchodu zabere čas; vyproštění truhly nadělá hluk.',['Uvolnit průchod','Vyprostit truhlu'],['Průchod vede k místu posledního střetu.','Kamení se bude sypat do cesty.']],
    cache:['cache','Cechovní zásilka','U cesty leží bedna s neporušenou cechovní pečetí. Podle štítku patří do nedalekého skladu.',['Rozlomit pečeť','Doručit zásilku'],['Nikdo u ní nehlídá.','Na štítku je vypsaná odměna.']]
   };
   const row=defs[id]||defs.boss;
@@ -269,8 +279,8 @@ class Game {
     else{f.ambush=true;this.advance('Připravená léčka','Vybral sis úkryt s dobrým výhledem. Teď už zbývá počkat na správnou chvíli.');}break;
    }
    case 'fork':
-    if(left){f.silent=true;this.advance(r.area===1?'Kořeny jsou přetnuté':'Průchod je volný',r.area===1?'Pěšina k mýtině je volná. Přetnuté kořeny sebou naposledy škubnou a pohasnou.':'Odvalil jsi poslední kámen. Za závalem je úzký průchod, kterým se dá protáhnout.');}
-    else{f.hunted=true;this.chest(1,r.area===1?'Truhla pod kořeny':'Truhla ze závalu');this.advance('Truhla je venku','Truhla je tvoje. Rachot padajícího kamení se ještě chvíli rozléhá okolím.');}break;
+    if(left){f.silent=true;this.advance(r.area===1?'Kořeny jsou přetnuté':r.area===3?'Ozvěna je rozladěná':'Průchod je volný',r.area===1?'Pěšina k mýtině je volná. Přetnuté kořeny sebou naposledy škubnou a pohasnou.':r.area===3?'Krystal praskl a jeskyně konečně přestala vracet každý zvuk. Časomol přišel o svou ozvěnu.':'Odvalil jsi poslední kámen. Za závalem je úzký průchod, kterým se dá protáhnout.');}
+    else{f.hunted=true;this.chest(1,r.area===1?'Truhla pod kořeny':r.area===3?'Schránka z časového krystalu':'Truhla ze závalu');this.advance('Truhla je venku',r.area===3?'Schránka je tvoje. Křídla v hloubi jeskyně odpověděla na poslední úder.':'Truhla je tvoje. Rachot padajícího kamení se ještě chvíli rozléhá okolím.');}break;
    case 'cache':
     if(left)this.chest(1,'Opuštěná cechovní bedna');else{s.records[r.area].marks++;s.flags.guildFriend=true;}
     this.advance(left?'Rozlomená pečeť':'Cechovní odměna',left?'Obsah bedny teď patří tobě.':'Cech ti vydal jeden místní materiál. Zakázka na výrobu je o krok blíž.');break;
@@ -320,7 +330,7 @@ class Game {
   const pressure=r.routeVersion===1?(r.pressure?.[r.index]??1):1,depth=r.routeVersion===1?1+.15*r.index/r.rooms.length:1;
   const hp=Math.round((boss?(r.routeVersion===1?120:100):elite?48:36)*scale*pressure*depth*(r.flags.hunted?1.10:1)*(boss&&!r.flags.silent?1.1:1));
   const damage=Math.round(((r.routeVersion===1?(boss?16:15):(boss?7:4))+level*1.35)*pressure*depth);
-  r.battle={...def,kind,boss,elite,hp,maxHp:hp,damage,turn:'player',round:0,log:[],tactic:null,used:[],charged:false,escaped:false,opening,mechanic:boss?['bell','roots','shell','tribute','avalanche'][r.area]:null,shellBroken:false};
+  r.battle={...def,kind,boss,elite,hp,maxHp:hp,damage,turn:'player',round:0,log:[],tactic:null,used:[],charged:false,escaped:false,opening,mechanic:boss?['bell','roots','shell','echo','tribute','avalanche'][r.area]:null,shellBroken:false};
   r.lastFoe={kind,boss};
   r.battle.hpBonus=Math.round(((r.flags.hunted?1.1:1)*(boss&&!r.flags.silent?1.1:1)-1)*100);
   if(opening)this.log(opening,'story');
@@ -333,6 +343,7 @@ class Game {
   if(b.covered)enemy.push('Útok −2');
   if(b.mechanic==='bell'&&!f.silent)enemy.push('Útok +2');
   if(b.mechanic==='roots'&&!f.silent)enemy.push('Regenerace');
+  if(b.mechanic==='echo'&&!f.silent)enemy.push('Odraz úderů');
   if(r.shield)hero.push('Štít '+Math.round(r.shield));
   if(b.boss&&f.blessed)hero.push('Ochrana −65 %');
   if(b.boss&&f.ambush&&b.round===0)hero.push('První úder +65 %');
@@ -360,7 +371,7 @@ class Game {
    if(b.hp<=0){this.win();return true;}
    const phase=b.hp/b.maxHp<=.35?'last':'first';
    if(b.boss&&!b.used.includes(phase)){
-    const tells=[['Zvednuté kladivo','Výběrčí zvedá kladivo oběma rukama. Než udeří, můžeš ustoupit nebo ho zasáhnout.'],['Jelen sklání paroží','Jelen hrabe kopytem a sklání paroží přímo proti tobě. Chystá se vyrazit.'],['Předák se napřahuje','Předák zvedá krumpáč nad hlavu. Při nápřahu se odkrývá spoj v jeho kamenném krunýři.'],['Král zvedá palcát','Král se zapřel a napřahuje palcát. „Tohle půjde na váš účet.“'],['Kamení nad stezkou','Král zvedá korunu k balvanu nad stezkou. Můžeš se stáhnout do bezpečí, nebo ho zasáhnout, než kouzlo balvan uvolní.']][r.area];
+    const tells=[['Zvednuté kladivo','Výběrčí zvedá kladivo oběma rukama. Než udeří, můžeš ustoupit nebo ho zasáhnout.'],['Jelen sklání paroží','Jelen hrabe kopytem a sklání paroží přímo proti tobě. Chystá se vyrazit.'],['Předák se napřahuje','Předák zvedá krumpáč nad hlavu. Při nápřahu se odkrývá spoj v jeho kamenném krunýři.'],['Křídla nad krystaly','Časomol zvedá křídla a krystaly pod ním rozeznívají tvůj poslední úder. Teď lze tvora zasáhnout, nebo se skrýt před ozvěnou.'],['Král zvedá palcát','Král se zapřel a napřahuje palcát. „Tohle půjde na váš účet.“'],['Kamení nad stezkou','Král zvedá korunu k balvanu nad stezkou. Můžeš se stáhnout do bezpečí, nebo ho zasáhnout, než kouzlo balvan uvolní.']][r.area];
     b.used.push(phase);b.tactic={phase,title:tells[0],text:tells[1],choices:['Ustoupit a krýt se','Přerušit silným úderem'],hints:[r.flags.silent?'Připravená cesta je volná.':r.flags.informed?'Vzpomínáš si na kupcovu radu.':'Místo k ústupu si musíš najít.','Během nápřahu je odkrytý.']};
     this.cue('warning');
     return true;
@@ -394,6 +405,7 @@ class Game {
   if(this.random()<a.evasion/100){r.riposte=true;this.log('ÚHYB · nepřítel zasáhl jen tvůj stín.','dodge');}
   else{
    let n=b.damage+(b.style==='spirit'?Math.floor(b.round/3):0);
+   if(b.mechanic==='echo'&&!r.flags.silent&&b.round%2===0){const echo=Math.max(2,Math.round((b.lastHit||b.damage)*.25));n+=echo;this.log('Ozvěna posledního úderu přidala '+echo+' poškození.','enemy');}
    if(b.charged){n=Math.round(n*1.8);b.charged=false;}
    if(b.mechanic==='bell'&&!r.flags.silent){n+=2;this.log('Posílený útok · +2 poškození.','enemy');}
    if(b.mechanic==='avalanche')n+=Math.floor(b.round/3);
@@ -423,12 +435,12 @@ class Game {
   const logs=copy(b.log),boss=b.boss,escaped=b.escaped;r.lastFoe={kind:b.kind,boss,carriesChest:!!b.carriesChest};r.battle=null;
   if(boss){
    const record=s.records[r.area];record.clears++;record.highest=Math.max(record.highest,r.challenge);record.marks+=2;
-   s.unlocked=Math.max(s.unlocked,Math.min(5,r.area+2));s.metrics.bosses++;
+   s.unlocked=Math.max(s.unlocked,Math.min(D.areas.length,r.area+2));s.metrics.bosses++;
    const loot=this.drop('boss');s.pending.push({type:'item',item:loot,note:'Boss poražen: garantovaný předmět úrovně '+loot.ilvl+'.'});
    this.chapterReport(r.area,'win',first);
    const report={win:true,area:r.area,challenge:r.challenge,gold:r.gold,xp:r.xp,marks:2,choices:r.choices.length,logs};
    s.lastReport=report;s.run=null;
-   this.note('Zakázka splněna',(first?['Výběrčí je poražen. Brána je otevřená.','Kouzlo nad jelenem povolilo. Les už pocestné nezadržuje.','Předákův krunýř se rozpadl. Horníci mohou odejít.','Král prohrál střet a uprchl ke svatyni v horách.','Koruna je zlomená. Král se vzdal a Pomezí znovu pozná noc.'][r.area]:'Ozvěna kletby je poražena. Skutečné místo zůstává svobodné.')+' Získáváš 2× '+p.material+'.'+(first&&r.area<D.areas.length-1?' Na mapě se otevřelo další místo.':' Můžeš zvýšit hrozbu pro silnější kořist.'));
+   this.note('Zakázka splněna',(first?['Výběrčí je poražen. Cesta k mostu je otevřená.','Jelen je volný a živá pečeť přesvědčila i Mostmistra Brumlu.','Předákův krunýř se rozpadl. Nákladní knihy ukazují cestu k jeskyni.','Časomol padl. Ukradené hodiny se vracejí údolím a jeskynní stezka vede k hradu.','Král prohrál střet a uprchl ke svatyni v horách.','Koruna je zlomená. Král se vzdal a údolí znovu pozná noc.'][r.area]:'Ozvěna kletby je poražena. Skutečné místo zůstává svobodné.')+' Získáváš 2× '+p.material+'.'+(first&&r.area<D.areas.length-1?' Na mapě se otevřelo další místo.':' Můžeš zvýšit hrozbu pro silnější kořist.'));
   }else{
    r.index++;
    if(!escaped&&this.random()<this.dropChance(b.elite))s.pending.push({type:'item',item:this.drop(b.elite?'chest':'enemy'),note:'Vzácný nález přímo z protivníka.'});

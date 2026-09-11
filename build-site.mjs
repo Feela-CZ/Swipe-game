@@ -10,7 +10,7 @@ for (const entry of ['index.html', 'styles.css', 'mobile-scene.css', 'character.
   await cp(new URL(`./${entry}`, import.meta.url), new URL(`./${entry}`, output), { recursive:true });
 }
 await mkdir(new URL('./assets/', output), {recursive:true});
-for (const asset of ['title-adventure-v1.webp','episode-1-map-v1.png','overworld-v3.webp', 'characters-v3.webp', 'environments-v3.webp', 'sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp','encounter-characters.png','encounter-props.png']) {
+for (const asset of ['title-adventure-v1.webp','episode-1-map-v1.png','tower-floors-v1.png','overworld-v3.webp', 'characters-v3.webp', 'environments-v3.webp', 'sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp','encounter-characters.png','encounter-props.png']) {
   await cp(new URL(`./assets/${asset}`, import.meta.url), new URL(`./assets/${asset}`, output));
 }
 await mkdir(new URL('./dist/server/',import.meta.url),{recursive:true});

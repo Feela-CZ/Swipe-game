@@ -103,7 +103,8 @@ const mapped=kinds.map(kind=>ctx.RPGScenes.encounter({kind},{area:0},null));
 assert.equal(new Set(mapped.map(a=>a.sheet+':'+a.cell)).size,kinds.length,'Every generic encounter type has distinct art');
 for(const entry of ctx.RPGData.encounters){const a=ctx.RPGScenes.encounter(entry,{area:entry.area||0},null);assert.ok(a.label);assert.ok(a.cell>=0&&a.cell<a.columns*a.columns);}
 assert.equal(ctx.RPGScenes.encounter({},{area:0},{kind:'spirit'}).cell,4,'A ghost is not a stag');
-assert.equal(ctx.RPGScenes.encounter({},{area:4},{boss:true}).cell,5,'Mountain finale depicts the king, not a stag');
+assert.equal(ctx.RPGScenes.encounter({},{area:5},{boss:true}).cell,5,'Mountain finale depicts the king, not a stag');
+assert.ok(sceneCss.includes('tower-floors-v1.png'));assert.ok(sceneCss.includes('tower-floor-2'));
 
 const sceneGame=new ctx.RPG.Game();sceneGame.setHeroName('Vendel');sceneGame.state.storyEvents=[];sceneGame.start();sceneGame.state.storyEvents=[];
 sceneGame.state.run.rooms=['patrol','scribe','boss'];sceneGame.state.run.index=0;sceneGame.state.notice=null;
