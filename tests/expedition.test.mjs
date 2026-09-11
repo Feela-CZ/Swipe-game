@@ -15,7 +15,10 @@ for(let area=0;area<D.areas.length;area++)for(let seed=1;seed<=60;seed++){
  assert.equal(ids.length,D.expeditionLengths[area]);assert.ok(ids.length>=50&&ids.length<=100);
  assert.equal(ids.at(-1),'boss');assert.equal(ids.at(-2),'camp');assert.equal(ids.filter(x=>x==='boss').length,1);
  assert.ok(ids.indexOf('wounded')<ids.indexOf('supplies'));assert.ok(ids.indexOf('supplies')<ids.indexOf('camp'));
- if(area===0){assert.ok(ids.indexOf('scribe')<ids.indexOf('bell'));scribes.add(ids.indexOf('scribe'));assert.equal(new Set(ids).size,ids.length);}
+ if(area===0){
+  assert.ok(ids.indexOf('manifest')<ids.indexOf('scribe'));assert.ok(ids.indexOf('scribe')<ids.indexOf('lift'));assert.ok(ids.indexOf('lift')<ids.indexOf('checkpoint'));assert.ok(ids.indexOf('checkpoint')<ids.indexOf('bell'));
+  scribes.add(ids.indexOf('scribe'));assert.equal(new Set(ids).size,ids.length);
+ }
  for(let i=0;i<ids.length;i++){const e=D.encounterById[ids[i]];if(e){assert.ok(e.area===undefined||e.area===area);if(e.kind==='aid')assert.ok(i<ids.indexOf('supplies'));assert.ok(!ids.slice(Math.max(0,i-12),i).includes(ids[i]));}}
  const state=JSON.stringify(g.state);g.room();g.room();assert.equal(JSON.stringify(g.state),state,'rendering cannot reroll');
  const saved=new Game(plain(g.state),rng(99));assert.deepEqual(plain(saved.state.run),plain(r));routes.add(ids.join(','));

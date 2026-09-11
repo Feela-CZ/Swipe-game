@@ -170,7 +170,11 @@ class Game {
   if(result==='win'&&first){const beat=copy(D.chapter.after[area]);event={...beat,id:'clear-'+area,speaker:beat.speaker||D.chapter.villain};}
   else if(result==='win')event={id:'echo-'+area,title:'Ozvěna je utišená',speaker:'Správce tábora Otmar',text:'„Pečeť ještě držela otisk staré kletby. Skutečné místo zůstává osvobozené; porazil jsi jen jeho ozvěnu.“',narration:'Výbava a suroviny, které kletba spoutala, ti zůstávají.',replies:['Příště zkusím vyšší hrozbu.','Teď si prohlédnu výbavu.'],answers:['„Silnější ozvěna, silnější kořist. Pořád stejný královský nepořádek.“','„Tentokrát se při převlékání nikdo nepočítá do pracovní doby.“'],closing:s.records.every(x=>x.clears)?'Příběh údolí je dokončený. Další výpravy jsou dobrovolné výzvy pro lepší kořist.':'Další krok hlavního příběhu najdeš na mapě. Již vyčištěná místa můžeš opakovat.'};
   else event={id:result+'-'+area,title:result==='retreat'?'Návrat není konec':'Zpátky u ohně',speaker:'Správce tábora Otmar',text:result==='retreat'?'„Dobře, že ses vrátil po svých. Cesta počká.“':s.run?.replay?'„Vytáhli jsme tě z ozvěny. Skutečné údolí se tím nevrátilo pod kletbu.“':'„Našli jsme tě u cesty. Král vyhrál tenhle střet, ne celou válku.“',narration:'Získané předměty a zkušenosti ti zůstaly. Odpočiň si, zkontroluj výbavu a doplň lektvary.',replies:['Vrátím se připravenější.','Nejdřív potřebuji lepší výbavu.'],answers:['„A já zatím připravím místo u ohně.“','„Výbavu prodává kupec. Ve vyčištěných místech můžeš hledat další kořist v ozvěnách kletby.“'],closing:'Nedokončenou výpravu začneš příště od vstupu. Hlavní příběh se neposunul.'};
-  if(first&&area===0)event.narration+=s.run?.flags.scribe?' Osvobozený písař ti pomohl najít správný příkaz.':' Klíč od pokladnice otevírá i zásuvku s královým příkazem.';
+  if(first&&area===0){
+   const f=s.run?.flags||{};
+   event.narration+=f.porterFriend?' Osvobození nosiči dostali součástky k mostu ven dřív, než je věž znovu zabavila.':' Přepsaný nákladní list odhalil, že věž zadržuje i součástky určené k opravě mostu.';
+   event.narration+=f.scribe?' Osvobozený písař ti pomohl umlčet zvon a schoval si kopii králova příkazu.':f.authorized?' Vlastní razítko věže proměnilo falešný náklad v účetní kontrolu a výběrčího zaměstnalo během boje.':' Klíč od pokladnice otevřel i zásuvku s královým příkazem.';
+  }
   s.storyEvents.push(event);
  }
  note(title,text){this.state.notice={title,text};this.jot(text);}
@@ -204,8 +208,13 @@ class Game {
   const n=D.expeditionLengths[area],rooms=Array(n).fill(null);
   const place=(id,lo,hi)=>{let at=lo+Math.floor(this.random()*(hi-lo+1));while(rooms[at])at=at===hi?lo:at+1;rooms[at]=id;return at;};
   rooms[0]=area===0?'gate':'trail';rooms[n-2]='camp';rooms[n-1]='boss';
-  if(area===0)place('scribe',Math.floor(n*.12),Math.floor(n*.28));
-  place(area===0?'bell':'fork',Math.floor(n*.66),Math.floor(n*.78));
+  if(area===0){
+   place('manifest',Math.floor(n*.10),Math.floor(n*.18));
+   place('scribe',Math.floor(n*.22),Math.floor(n*.31));
+   place('lift',Math.floor(n*.38),Math.floor(n*.47));
+   place('checkpoint',Math.floor(n*.55),Math.floor(n*.64));
+  }
+  place(area===0?'bell':'fork',Math.floor(n*.69),Math.floor(n*.78));
   place('wounded',Math.floor(n*.3),Math.floor(n*.46));
   place('well',Math.floor(n*.47),Math.floor(n*.61));
   const supply=place('supplies',n-7,n-4);
@@ -224,11 +233,14 @@ class Game {
   const defs={
    supplies:['supplies','Zásobovací stanoviště',f.favors?'Zásobovač tě poznává podle vzkazu od lidí, kterým jsi cestou pomohl. Odkládá pro tebe balík obvazů.':'U zásobovacího stanoviště zbývá několik obvazů. Zásobovač nabízí ošetření za deset zlatých.',['Přijmout ošetření','Pokračovat bez zastávky'],['','']],
    gate:['gate','Za branou','Strážný chce vstupné. Na směnovém lístku má přeškrtnuté tři dny.',['Zaplatit 8 zlata','Trvat na průchodu'],['Mince nebo rozhovor?','Ruka mu sklouzla ke zbrani.']],
+   manifest:['manifest','Zabavený náklad','Dva nosiči čekají u beden označených „součástky k mostu“. Na stolku leží rozpis hlídek i prázdný nákladní list. Dozorce právě odešel pro další razítko.',['Přepsat nákladní list','Osvobodit nosiče'],['S falešným listem může nákladní výtah projet kontrolou.','Nosiči znají služební chodby a zdejší zásobovače.']],
    scribe:['scribe','Písař za mřížemi',this.state.flags.scribeFriend?'„Zase vy? Tentokrát mě zavřeli za správné datum.“ Písař se už natahuje po klíči.':'„Zvon svolá všechny stráže,“ šeptá písař. Klíč od cely i trezoru visí na stejném kroužku.',['Osvobodit písaře','Vzít klíč a odejít'],['Zná chodby i jejich obyvatele.','Za mřížemi zůstane ticho.']],
+   lift:['lift','Nákladní výtah',f.cargoPass?'Obsluha přečte tvůj přepsaný list. „Součástky k mostu, horní strojovna.“ Výtah je připravený; vedle něj začíná úzké schodiště.':f.porterFriend?'Jeden z osvobozených nosičů ti nechal výtah odjištěný. Na závaží visí vzkaz: „Brzda kope.“ Vedle vede úzké schodiště.':'Výtah hlídá obsluha s knihou nákladu. Bez správného listu tě do klece nepustí. Vedle vede dlouhé úzké schodiště.',['Použít nákladní výtah','Jít po schodech'],[f.cargoPass?'List projde, dokud se nikdo nezačne ptát.':f.porterFriend?'Nosič označil správnou brzdu.':'Obsluha čeká na doklad.','Schodiště obchází výtah i hlavní chodbu.']],
+   checkpoint:['checkpoint','Kontrola horního patra',f.cargoPass?'Strážný má v ruce kopii tvého falešného listu. Čísla sedí, podpis vypadá jako velmi sebevědomaná slepice.':f.porterFriend?'Za skladem čeká jeden z osvobozených nosičů. Ukazuje na dveře, které hlídka nechává při střídání prázdné.':'Před vstupem do horního patra kontroluje strážný každého příchozího. Boční ochoz je na dohled kušiníka.',['Projít hlavní kontrolou','Vzít boční ochoz'],[f.cargoPass?'Strážný porovnává hlavně čísla.':f.porterFriend?'Nosič zná čas střídání hlídky.':'Nemáš doklad ani místního průvodce.',f.stairRoute?'Ze schodiště už znáš dveře na ochoz.':'Ochoz sleduje střelec.']],
    well:['well','Prsten u studny','Na obrubě leží prsten s vyrytým jménem. Stejné jméno a adresu sis přečetl na oznámení o ztrátě. Rodina táboří nedaleko.',['Nechat si prsten','Vrátit jej rodině'],['Vejde se do kapsy.','Majitele už dokážeš najít.']],
    wounded:['wounded','Posel u cesty',this.state.flags.courierFriend?'Posel tě poznává. „Ještě vám dlužím za minule.“ Nabízí ti mapu tábořiště a zásoby.':'Raněný posel sedí u cesty. Balík mu ukradli; zůstal mu jen měšec a trochu proviantu.',[this.state.flags.courierFriend?'Přijmout jeho pomoc':'Ošetřit posla','Vzít mu měšec'],[this.state.flags.courierFriend?'Ukazuje ti místo k odpočinku.':this.state.potions?'Jeden lektvar mu pomůže.':'Bez lektvaru ho musíš odnést k cestě.','Posel tě dobře vidí.']],
    merchant:['merchant','Kupec pod lucernou','Kupec rozloží několik lektvarů. „Léčí rány. Dluhy bohužel ne.“ Vedle lahviček leží mapa okolí.',['Koupit lektvar · 18 zlata','Zeptat se na cestu'],['Zátka je neporušená.','Kupec zdejší cestu dobře zná.']],
-   bell:['bell',f.scribe?'Slíbená pomoc':'Zvon a pokladnice',f.scribe?'Písař čeká u lana. „Trezor, nebo ticho? Na obojí nemáme čas.“':'Za schody leží pokladnice. Nad hlavou se houpe poplašný zvon.',['Umlčet zvon','Otevřít pokladnici'],['Někdo si toho všimne až pozdě.','Klíč v kapse by mohl pasovat.']],
+   bell:['bell',f.scribe?'Slíbená pomoc':f.authorized?'Zvon podle předpisu':'Zvon a pokladnice',f.scribe?'Písař čeká u lana. „Trezor, nebo ticho? Na obojí nemáme čas.“':f.authorized?'U zvonu visí pravidlo: při účetní kontrole musí zůstat němý. Tvůj falešný nákladní list právě získal nečekanou autoritu.':'Za schody leží pokladnice. Nad hlavou se houpe poplašný zvon.',['Umlčet zvon','Otevřít pokladnici'],[f.scribe||f.authorized||f.stairRoute?'Máš bezpečnou cestu k lanu.':'K lanu vede odkrytý ochoz.','Klíč v kapse by mohl pasovat.']],
    patrol:['patrol','Hlídka na cestě','Cestu hlídá ozbrojený strážný. V '+places[0]+' zahlédneš velkou krysu s ukradeným měšcem.',['Dát se za krysou','Postavit se strážnému'],['Krysa hledá cestu k útěku.','Strážný si zapíná přilbu.']],
    camp:['camp','Chvíle na přípravu',f.courier?'Posel ti '+places[1]+' nechal proviant. „Expresní doručení. Tentokrát zdarma.“':places[2],['Odpočinout si','Připravit léčku'],['Ošetřit rány a srovnat dech.','Připravit první úder ze zálohy.']],
    boss:['boss',area.boss,(r.replay?'Před tebou ožívá otisk někdejšího střetu. ':'')+(r.area===0?(f.silent?'Zvon mlčí. Výběrčí sevře kladivo. „Král se o tom dozví.“':'Zvon se rozezní. Výběrčí přivolává stráže: „Z králova rozkazu nikdo neprojde!“'):[null,'Jelen stojí před výstupem z háje. Z pečeti na jeho krku zazní král: „Cesta je uzavřena.“ Zvíře sklopí paroží.','Předák zvedne krumpáč. Pod kamenným krunýřem ještě poznáváš člověka. Na zdi svítí králův příkaz: „Těžba bez přestávky.“','Velký Časomol roztáhne křídla nad krystaly. Z pečeti na kokonu zazní: „Zadržený čas je majetkem koruny.“','Král vstane z trůnu. „Věž, les, důl i jeskyně. To jste mi tu udělal pěkný nepořádek.“ Koruna mu na čele rozžehne zlaté světlo.','Král stojí u oltáře pod skalní stěnou. „Ještě není hotovo!“ Koruna rozvibruje kameny nad stezkou.'][r.area]),['Zkontrolovat výbavu','Vstoupit do boje'],['Můžeš se vrátit k přípravě.','Za vítězství čeká předmět i materiál.']],
@@ -254,9 +266,22 @@ class Game {
    case 'gate':
     if(left&&s.gold>=8){s.gold-=8;this.advance('Vstupné zaplaceno','Strážný schoval mince. „Potvrzení vám vydá poslední patro.“');}
     else this.fight('guard',false,left?'Na vstupné ti chybí mince. Strážný navrhuje praktickou zkoušku.':'Strážný nesouhlasí. Bude to muset vysvětlit zbraní.');break;
+   case 'manifest':
+    if(left){f.cargoPass=true;this.advance('Náklad pro horní patro','Do listu jsi připsal součástky k mostu a velmi přibližný podpis. Obsluha výtahu teď očekává tvůj náklad.');}
+    else{f.porterFriend=true;f.favors=(f.favors||0)+1;s.flags.porterFriend=true;this.advance('Nosiči jsou volní','Zmizeli služební chodbou. Jeden slíbil odjistit výtah, druhý poslat zprávu zásobovačům.');}break;
    case 'scribe':
     if(left){f.scribe=true;s.flags.scribeFriend=true;this.advance('Písař je volný','„Najdete mě u zvonu.“ Písař si bere klíč od cely i pokladnice. Zná bezpečnou cestu k lanu.');}
     else{f.key=true;this.advance('Klíč od pokladnice','Písař se dívá za tebou. Klíč je tvůj, pomoc ne.');}break;
+   case 'lift':
+    if(left&&(f.cargoPass||f.porterFriend)){f.liftRoute=true;this.advance('Výtah stoupá',f.cargoPass?'Nákladní list prošel. Klec tě vyvezla do strojovny dřív, než obsluha domyslela chybějící bedny.':'Odjištěný výtah tě vyvezl do strojovny. Nosičův vzkaz o brzdě byl překvapivě přesný.');}
+    else if(left){this.fight('guard',false,'Obsluha nenašla tvé jméno ani náklad. Místo výtahu přivolala stráž.');}
+    else{f.stairRoute=true;const before=s.hp;this.hurt(5);this.advance('Po vlastních','Schodiště obešlo hlavní chodbu, ale dlouhý výstup tě stál '+(before-s.hp)+' životů. Teď znáš boční vstup do horního patra.');}break;
+   case 'checkpoint':
+    if(left&&f.cargoPass){f.authorized=true;this.fight('guard',false,'Čísla souhlasí, ale podpis připomíná slepici. Strážný tasí meč; při tom orazítkuje list jako účetní kontrolu.');if(f.liftRoute){r.battle.damage=Math.max(1,r.battle.damage-3);r.battle.covered=true;this.log('Bedny z výtahu ti poskytují kryt. Útok strážného je slabší.','story');}}
+    else if(left&&f.porterFriend){f.authorized=true;this.advance('Mezera ve směně','Nosič tě provedl kontrolou právě ve chvíli, kdy se obě hlídky považovaly za vystřídané.');}
+    else if(left)this.fight('guard',true,'Strážný nenašel důvod tě pustit. Ty zase nenašel důvod odejít.');
+    else if(f.stairRoute||f.porterFriend){f.silentApproach=true;this.advance('Boční ochoz','Dveře byly přesně tam, kde měly být. Kontrolu jsi obešel a ke zvonici vede prázdný ochoz.');}
+    else this.fight('hunter',false,'Na bočním ochozu čekal kušiník. Bez místního průvodce ses objevil přímo v jeho výhledu.');break;
    case 'well':
     if(left){s.pending.push({type:'item',item:this.item('ring','uncommon',D.areas[r.area].level+r.challenge*2),note:'Prsten, který sis nechal u studny.'});this.advance('Nález u studny','Prsten máš u sebe. O jeho dalším osudu rozhodneš v kartě nálezu.');}
     else{const reward=this.gold(16);s.flags.familyFriend=true;f.blessed=true;this.advance('Prsten se vrátil domů','Rodina ti dala '+reward+' zlata. Při loučení ti stařenka nakreslila na čelo drobný znak.');}break;
@@ -269,7 +294,7 @@ class Game {
     if(left&&s.gold>=18){s.gold-=18;s.potions++;this.advance('Lektvar v opasku','Kupec ti podává neporušenou lahvičku. „Zátku nejezte.“');}
     else{f.informed=true;this.advance('Rada na cestu',(left?'Na lektvar nemáš dost zlata. Kupec ti alespoň poradí. ':'')+'Kupec načrtl do prachu několik průchodů. Než odejdeš, kresbu zase zahladí.');}break;
    case 'bell':
-    if(left){f.silent=true;if(!f.scribe)this.hurt(12);this.advance('Zvon ztichl',f.scribe?'Písař dodržel slovo. Lano je přeříznuté a ve věži je nezvyklé ticho.':'Lano ti popálilo ruce za 12 životů. Zvon ale už nezazní.');}
+    if(left){f.silent=true;const safe=f.scribe||f.authorized||f.stairRoute||f.silentApproach;if(!safe)this.hurt(12);this.advance('Zvon ztichl',f.scribe?'Písař dodržel slovo. Lano je přeříznuté a ve věži je nezvyklé ticho.':f.authorized?'Stráž uvolnila cestu k lanu podle vlastního razítka. Zvon mlčí a výběrčí stále řeší nesrovnalost v nákladním listu.':safe?'Z bočního ochozu ses dostal přímo k lanu. Zvon už nikoho nesvolá.':'Lano ti popálilo ruce za 12 životů. Zvon ale už nezazní.');}
     else if(f.key||f.scribe){this.chest(1,'Pokladnice otevřená klíčem');this.advance('Dveře pokladnice','Za trezorem zůstal zvon. Kořist je na dosah, výběrčí o tobě uslyší.');}
     else{this.chest(0,'Malá schránka před trezorem');this.advance('Trezor nepovolil','Bez klíče jsi našel jen schránku pro drobné. Zvon zůstává funkční.');}break;
    case 'patrol':this.fight(left?'thief':'guard',true);break;
@@ -328,8 +353,8 @@ class Game {
   const s=this.state,r=s.run,p=D.areas[r.area],level=p.level+r.challenge*2,boss=kind==='boss',def=boss?{name:p.boss,art:p.bossArt,style:'boss',hint:p.hint}:D.foeKinds[kind];
   const scale=1+level*.12;
   const pressure=r.routeVersion===1?(r.pressure?.[r.index]??1):1,depth=r.routeVersion===1?1+.15*r.index/r.rooms.length:1;
-  const hp=Math.round((boss?(r.routeVersion===1?120:100):elite?48:36)*scale*pressure*depth*(r.flags.hunted?1.10:1)*(boss&&!r.flags.silent?1.1:1));
-  const damage=Math.round(((r.routeVersion===1?(boss?16:15):(boss?7:4))+level*1.35)*pressure*depth);
+  const hp=Math.round((boss?(r.routeVersion===1?120:100):elite?48:36)*scale*pressure*depth*(r.flags.hunted?1.10:1)*(boss&&!r.flags.silent?1.1:1)*(boss&&r.flags.authorized?0.9:1));
+  const damage=Math.max(1,Math.round(((r.routeVersion===1?(boss?16:15):(boss?7:4))+level*1.35)*pressure*depth)-(boss&&r.flags.authorized?2:0));
   r.battle={...def,kind,boss,elite,hp,maxHp:hp,damage,turn:'player',round:0,log:[],tactic:null,used:[],charged:false,escaped:false,opening,mechanic:boss?['bell','roots','shell','echo','tribute','avalanche'][r.area]:null,shellBroken:false};
   r.lastFoe={kind,boss};
   r.battle.hpBonus=Math.round(((r.flags.hunted?1.1:1)*(boss&&!r.flags.silent?1.1:1)-1)*100);
@@ -341,6 +366,7 @@ class Game {
   const hp=b.hpBonus??Math.round(((f.hunted?1.1:1)*(b.boss&&!f.silent?1.1:1)-1)*100);
   if(hp)enemy.push('Životy +'+hp+' %');
   if(b.covered)enemy.push('Útok −2');
+  if(b.boss&&f.authorized)enemy.push('Kontrola účtů · útok −2');
   if(b.mechanic==='bell'&&!f.silent)enemy.push('Útok +2');
   if(b.mechanic==='roots'&&!f.silent)enemy.push('Regenerace');
   if(b.mechanic==='echo'&&!f.silent)enemy.push('Odraz úderů');

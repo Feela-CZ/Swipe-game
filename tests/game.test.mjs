@@ -79,6 +79,17 @@ test('scribe, key and bell create different persistent consequences',()=>{
  const thief=fresh();thief.start();thief.state.run.rooms=['scribe','bell','boss'];thief.choose('right');thief.state.notice=null;thief.choose('right');
  assert.equal(thief.state.pending[0].tier,1);assert.ok(!thief.state.run.flags.silent);
 });
+test('tower encounters form a causal network from cargo to boss',()=>{
+ const g=fresh();g.start();g.state.run.rooms=['manifest','lift','checkpoint','bell','boss'];
+ g.choose('left');g.state.notice=null;assert.ok(g.room().text.includes('přepsaný list'));g.choose('left');g.state.notice=null;
+ assert.ok(g.state.run.flags.liftRoute);assert.ok(g.room().text.includes('falešného listu'));g.choose('left');g.state.notice=null;
+ assert.ok(g.state.run.flags.authorized);assert.equal(g.state.run.battle.kind,'guard');g.state.run.battle.hp=1;g.step();g.state.notice=null;
+ assert.ok(g.room().text.includes('účetní kontrole'));g.choose('left');g.state.notice=null;
+ assert.ok(g.state.run.flags.silent);g.fight('boss',true);assert.ok(g.combatEffects().enemy.includes('Kontrola účtů · útok −2'));
+ const aided=fresh();aided.start();aided.state.run.rooms=['manifest','lift','supplies','boss'];aided.state.hp=50;aided.choose('right');aided.state.notice=null;
+ assert.ok(aided.state.run.flags.porterFriend);aided.choose('left');aided.state.notice=null;const gold=aided.state.gold;aided.choose('left');assert.equal(aided.state.gold,gold);assert.ok(aided.state.hp>50);
+ const blocked=fresh();blocked.start();blocked.state.run.rooms=['lift','boss'];blocked.choose('left');assert.equal(blocked.state.run.battle.kind,'guard');
+});
 test('save/load retains exact expedition, tactics and suspended room',()=>{
  const g=fresh();g.start();g.state.run.index=6;g.fight('boss',true);g.step();assert.ok(g.state.run.battle.tactic);
  const loaded=new Game(plain(g.state),seedRng(9));assert.deepEqual(plain(loaded.state.run),plain(g.state.run));
