@@ -146,7 +146,7 @@ click('equipped','body');assert.ok(!/Zbroj \+\d+[,.]\d/.test(overlay()));click('
 
 const unnamed=new ctx.RPG.Game();unnamed.state.flags.chapterIntroSeen=true;unnamed.start();unnamed.state.storyEvents=[];unnamed.state.notice=null;unnamed.fight('guard');
 storage.set('ne-ale-zabijim-v3',JSON.stringify(unnamed.state));await boot();
-assert.ok(overlay().includes('Jak se jmenuješ?'));assert.ok(overlay().includes('value="Roman"'));const savedRun=JSON.stringify(state().run),savedGold=state().gold;
+assert.ok(overlay().includes('Jak se jmenuješ?'));assert.ok(overlay().includes('value="Ronan"'));const savedRun=JSON.stringify(state().run),savedGold=state().gold;
 click('start');assert.equal(JSON.stringify(state().run),savedRun);
 handlers.input({target:{id:'hero-name',value:'<img onerror=alert(1)>'}});click('name-confirm');assert.equal(state().heroName,'');assert.ok(overlay().includes('Jak se jmenuješ?'));
 handlers.input({target:{id:'hero-name',value:"Žan O'Neil"}});handlers.visibilitychange();assert.ok(overlay().includes('Žan O&#39;Neil'));

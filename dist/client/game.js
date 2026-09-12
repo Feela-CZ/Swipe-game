@@ -11,7 +11,7 @@ let game=new RPG.Game(stored);let tab='map',timer=null,checkTimer=null,checkAnim
 const saves=new RPGSaves.Saves((...args)=>fetch(...args));
 let front='splash',busy=false,autoTimer=null,lastSaved='',saveMessage='',hasSession=false,sessionRevision=0,sessionStale=false;
 const HEROES={
- male:{id:'male',label:'Roman',defaultName:'Roman',battle:'assets/hero-roman-battle-cutout.png',select:'assets/hero-roman-select.jpg',pronoun:'Dobrodruh'},
+ male:{id:'male',label:'Ronan',defaultName:'Ronan',battle:'assets/hero-roman-battle-cutout.png',select:'assets/hero-roman-select.jpg',pronoun:'Dobrodruh'},
  female:{id:'female',label:'Sorsha',defaultName:'Sorsha',battle:'assets/hero-sorsha-battle-cutout.png',select:'assets/hero-sorsha-select.jpg',pronoun:'Dobrodružka'}
 };
 const hero=(id=game.state.heroId)=>HEROES[id]||HEROES.male;
