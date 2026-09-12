@@ -35,13 +35,16 @@ class Game {
   equipped.weapon=this.item('dagger','common',1,[['damage',2]]);
   equipped.body=this.item('cloak','common',1,[['vitality',8]]);
   equipped.feet=this.item('boots','common',1,[['evasion',3]]);
-  return {version:4,heroName:'',level:1,xp:0,points:30,levelNotice:{from:1,to:1,hp:0,points:30,initial:true},growth:{might:0,grit:0,agility:0,intelligence:0,luck:0,perception:0},
+  return {version:4,heroId:'male',heroChosen:false,heroName:'',level:1,xp:0,points:30,levelNotice:{from:1,to:1,hp:0,points:30,initial:true},growth:{might:0,grit:0,agility:0,intelligence:0,luck:0,perception:0},
    gold:35,essence:12,potions:3,hp:119,equipped,inventory:[],capacity:20,pending:[],notice:null,
    selectedArea:0,selectedChallenge:0,records:D.areas.map(()=>({clears:0,highest:-1,marks:0})),
    unlocked:1,run:null,journal:[],flags:{},settings:{sound:false,volume:.55,speed:1,mapLabels:true},lastReport:null,
    storyEvents:[],metrics:{choices:0,merges:0,runs:0,bosses:0}};
  }
  migrate(raw){
+  this.state.heroId=raw.heroId==='female'?'female':'male';
+  // Existing saves keep their named adventurer and do not get interrupted by creation again.
+  this.state.heroChosen=raw.heroChosen===false?false:true;
   this.setHeroName(raw.heroName);
   const s=this.state,g=raw.growth||{};
   s.level=Math.max(1,integer(raw.level,1));s.xp=integer(raw.xp);s.points=integer(raw.points??raw.statPoints);
@@ -65,9 +68,9 @@ class Game {
   for(const item of raw.inventory||[]){const it=sanitize(item);if(it)s.inventory.push(it);}
   s.capacity=20; // Legacy overflow is kept, but no new items fit until below the limit.
   s.journal=Array.isArray(raw.journal)?raw.journal.slice(-60).map(narrative):[];
-  s.flags=raw.version===3||raw.version===4?{...raw.flags}:{};
+  s.flags=raw.version===3||raw.version===4||raw.version===5?{...raw.flags}:{};
   s.storyEvents=Array.isArray(raw.storyEvents)?copy(raw.storyEvents).filter(x=>x&&typeof x.text==='string'&&Array.isArray(x.replies)&&Array.isArray(x.answers)).slice(0,20):[];
-  if(raw.version===3||raw.version===4){
+  if(raw.version===3||raw.version===4||raw.version===5){
    const oldEpisode=raw.version===3&&Array.isArray(raw.records)&&raw.records.length===5;
    const sourceIndex=i=>oldEpisode?(i===3?-1:i>3?i-1:i):i;
    s.records=D.areas.map((_,i)=>{const source=raw.records?.[sourceIndex(i)];return {clears:integer(source?.clears),highest:Math.max(-1,Math.floor(Number(source?.highest??-1))),marks:integer(source?.marks)};});
@@ -101,7 +104,11 @@ class Game {
  setHeroName(value){
   const name=typeof value==='string'?value.trim().replace(/\s+/g,' '):'';
   if(!/^[\p{L}\p{M}][\p{L}\p{M} '\-]{1,23}$/u.test(name))return false;
-  this.state.heroName=name;return true;
+  this.state.heroName=name;this.state.heroChosen=true;return true;
+ }
+ setHero(id){
+  if(id!=='male'&&id!=='female')return false;
+  this.state.heroId=id;this.state.heroChosen=true;return true;
  }
  basePower(item){
   const d=D.itemById[item.kind];

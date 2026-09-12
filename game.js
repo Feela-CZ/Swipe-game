@@ -10,12 +10,17 @@ try{
 let game=new RPG.Game(stored);let tab='map',timer=null,checkTimer=null,checkAnimating=false,paused=false,selected=null,donor=null,mergeBase=null,dialog=null,filter='all',pointer=null,previousFocus=null;
 const saves=new RPGSaves.Saves((...args)=>fetch(...args));
 let front='splash',busy=false,autoTimer=null,lastSaved='',saveMessage='',hasSession=false,sessionRevision=0,sessionStale=false;
+const HEROES={
+ male:{id:'male',label:'Roman',defaultName:'Roman',battle:'assets/hero-roman-battle-cutout.png',select:'assets/hero-roman-select.jpg',pronoun:'Dobrodruh'},
+ female:{id:'female',label:'Sorsha',defaultName:'Sorsha',battle:'assets/hero-sorsha-battle-cutout.png',select:'assets/hero-sorsha-select.jpg',pronoun:'Dobrodružka'}
+};
+const hero=(id=game.state.heroId)=>HEROES[id]||HEROES.male;
 function titleView(){
  const labels={auto:'Automatická pozice',legacy:'Původní rozehraná hra','1':'Pozice 1','2':'Pozice 2','3':'Pozice 3'};
  let content='';
  if(front==='splash')content=btn('Pokračovat','title-skip','','title-skip');
  else if(front==='load')content='<h2>Load Game</h2>'+saves.rows.sort((a,b)=>a.slot.localeCompare(b.slot)).map(row=>btn('<strong>'+labels[row.slot]+'</strong><span>'+esc(row.state.heroName||'Dobrodruh')+' · úroveň '+row.state.level+'</span><small>'+esc(new Date(row.updated_at).toLocaleString('cs-CZ'))+'</small>','title-load',row.slot,'save-row',busy)).join('')+(!saves.rows.length?'<p>Žádná uložená pozice.</p>':'')+(stored?'<details><summary>Záloha z tohoto zařízení</summary>'+btn('Obnovit místní zálohu','title-load','local','secondary wide',busy)+'<p>Může obsahovat i postup, který se před zavřením hry nestihl odeslat.</p></details>':'')+btn('Zpět','title-back','','secondary',busy);
- else if(front==='new')content='<h2>New Game</h2><p>Automatickou pozici nahradí nová hra. Ruční pozice i původní záloha zůstanou.</p>'+btn('Začít novou hru','title-new-confirm','','primary wide',busy)+btn('Zpět','title-back','','secondary wide',busy);
+ else if(front==='new')content='<h2>Vyber hrdinu</h2><p>Člověk. Zatím nejlepší dostupná volba.</p><div class="hero-choice-grid">'+Object.values(HEROES).map(h=>'<button class="hero-choice" data-action="title-hero" data-value="'+h.id+'"><img src="'+h.select+'" alt=""><span><strong>'+h.label+'</strong><small>Člověk · '+h.pronoun+'</small></span></button>').join('')+'</div>'+btn('Zpět','title-back','','secondary wide',busy);
  else content=btn('New Game','title-new','','primary wide',busy||!saves.ready)+btn('Load Game','title-list','','secondary wide',busy||!saves.ready)+btn('Settings','title-settings','','secondary wide',busy)+(hasSession?btn('Zpět do hry','title-resume','','text-button wide',busy||sessionStale):'');
  $('title-screen').innerHTML='<div class="title-art" aria-hidden="true"></div><div class="title-content"><h1 class="sr-only">Quest Happens</h1><div class="title-menu '+(front==='splash'?'splash-menu':['load','new'].includes(front)?'title-menu-panel':'')+'">'+content+(busy?'<p class="title-status" role="status">Načítám pozice…</p>':'')+(saves.error?'<p class="title-status" role="alert">'+esc(saves.error)+'</p>'+btn('Zkusit znovu','title-retry','','secondary wide',busy):!saves.ready&&front!=='splash'?'<p class="title-status" role="status">Načítám pozice…</p>':'')+'</div></div>';
 }
@@ -26,7 +31,7 @@ async function refreshSaves(){
 }
 function enter(state){
  sessionStale=false;sessionRevision=saves.rows.find(x=>x.slot==='auto')?.revision||0;
- clearTimeout(autoTimer);autoTimer=null;clearTimeout(checkTimer);checkAnimating=false;const preferences={...game.state.settings};game=new RPG.Game(state);game.state.settings=preferences;nameDraft=game.state.heroName||'Vendel';front='';hasSession=true;dialog=null;tab=game.state.run?'road':'map';paused=false;mergeBase=null;selected=null;filter='all';lastSaved='';lastAudioLevel=game.state.level;lastLootSound=game.state.pending[0]?.item?.id;game.drainAudio();render();
+ clearTimeout(autoTimer);autoTimer=null;clearTimeout(checkTimer);checkAnimating=false;const preferences={...game.state.settings};game=new RPG.Game(state);game.state.settings=preferences;nameDraft=game.state.heroName||hero().defaultName;front='';hasSession=true;dialog=null;tab=game.state.run?'road':'map';paused=false;mergeBase=null;selected=null;filter='all';lastSaved='';lastAudioLevel=game.state.level;lastLootSound=game.state.pending[0]?.item?.id;game.drainAudio();render();
 }
 async function cloudSave(slot='auto'){
  clearTimeout(autoTimer);autoTimer=null;const snapshot=JSON.stringify(game.state);
@@ -45,17 +50,20 @@ async function titleAction(action,value){
  if(!saves.ready){toast('Nejdřív načti uložené pozice.');return;}
  busy=true;titleView();
  try{
-  if(action==='title-new-confirm'){
+  if(action==='title-hero'){
    // Archive a running session before replacing its automatic slot.
    if(hasSession&&!sessionStale&&!await cloudSave())return;
    enter(null);
+   if(!game.setHero(value))throw new Error('Tento hrdina není k dispozici.');
+   nameDraft=hero().defaultName;
+   render();
   }else if(action==='title-load'){
    await saves.refresh();const row=value==='local'&&stored?{state:stored}:saves.rows.find(x=>x.slot===value);if(!row)throw new Error('Pozice už není dostupná.');enter(row.state);
   }
  }catch(e){toast(e.message);}finally{busy=false;render();}
 }
 const audio=new RPGSound.Player(window,()=>toast('Zvuk se nepodařilo spustit. Hra funguje dál; zkus jej znovu zapnout.'));
-let nameDraft=game.state.heroName||'Vendel';
+let nameDraft=game.state.heroName||hero().defaultName;
 let lastLootSound=game.state.pending[0]?.item?.id,lastAudioLevel=game.state.level,motion='',characterPage='attributes',statPage=0;
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,value='',classes='',disabled=false)=>'<button class="'+classes+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
@@ -178,6 +186,10 @@ function logs(rows){if(!rows?.length)return '';return '<details class="log-detai
 function sceneSprite(art,classes){
  return '<div class="scene-sprite '+classes+' sheet-'+art.sheet+'" role="img" aria-label="'+esc(art.label)+'" data-scene-cell="'+art.cell+'" style="--sprite-x:'+(art.cell%art.columns*100/(art.columns-1))+'%;--sprite-y:'+(Math.floor(art.cell/art.columns)*100/(art.columns-1))+'%"></div>';
 }
+function heroActor(){
+ const h=hero();
+ return '<div class="hero-token selected-hero hero-'+h.id+'" role="img" aria-label="'+esc(game.state.heroName||h.defaultName)+'"><img src="'+h.battle+'" alt=""></div>';
+}
 function roadView(){
  const s=game.state,r=s.run;
  if(!r)return '<section class="road-screen"><div class="screen-scroll">'+heading('VÝPRAVA','Cesta čeká')+(s.lastReport?reportCard(s.lastReport):'<section class="panel"><p>Vyber místo na mapě a vydej se po stopě královy kletby.</p></section>')+'</div><footer class="action-dock">'+btn('Otevřít mapu','tab','map','primary wide')+'</footer></section>';
@@ -190,7 +202,7 @@ function roadView(){
  const stage='<section class="stage scene-'+p.scene+towerClass+' '+(b?'fighting ':'')+(motion?'motion-'+motion:'')+'" aria-label="'+esc(p.name)+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+(towerLabel?'<small class="stage-location">'+towerLabel+'</small>':'')+
   sceneSprite(art,'encounter-token')+
  (b?'<div class="battle-bonuses"><div class="hero-bonuses">'+effects.hero.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div><div class="enemy-bonuses">'+effects.enemy.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></div><div class="enemy-meter"><strong>'+esc(b.name)+'</strong>'+health(b.hp,b.maxHp,'enemy')+'<small>'+b.hp+' / '+b.maxHp+'</small></div>':'')+
-  sceneSprite({...RPGScenes.hero,label:s.heroName||'Dobrodruh'},'hero-token')+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
+   heroActor()+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
  const check=n?.check||(b&&r.lastCheck),checkNames={might:'Síla',grit:'Odolnost',agility:'Obratnost',intelligence:'Inteligence',luck:'Štěstí',perception:'Všímavost'};
  const rngClass=checkAnimating?' rng-playing'+(s.settings.speed===2?' rng-fast':''):'',dieFaces=['','⚀','⚁','⚂','⚃','⚄','⚅'],checkView=check?'<div class="rng-check '+(check.success?'check-success':'check-fail')+rngClass+'" aria-live="polite"><div class="dice" aria-label="Hod kostkami '+check.dice[0]+' a '+check.dice[1]+'"><i>'+dieFaces[check.dice[0]]+'</i><i>'+dieFaces[check.dice[1]]+'</i></div><div><small class="rng-math">'+check.base+' % základ + '+check.value+' '+checkNames[check.stat]+' × 0,5 + '+(check.dice[0]+check.dice[1])+' za kostky = <b>'+fmt(check.chance)+' %</b></small><strong class="rng-verdict">'+(check.success?'Úspěch':'Neúspěch')+' · kontrolní hod '+check.roll+'</strong></div></div>':'';
  let content='',actions='';
@@ -228,7 +240,7 @@ function characterView(){
    '<div class="stat-pages">'+btn('←','stat-page',statPage-1,'secondary',statPage===0)+'<span>'+(statPage+1)+' / '+Math.ceil(statRows.length/6)+'</span>'+btn('→','stat-page',statPage+1,'secondary',statPage>=Math.ceil(statRows.length/6)-1)+'</div>';
  }
  return '<section class="character-screen">'+heading('',s.heroName||'Dobrodruh',wallet())+
-  '<div class="character-summary"><img src="assets/sir-smik.webp" alt="Postava"><div><small>Úroveň '+s.level+'</small><h3>Dobrodruh na zkušební dobu</h3>'+health(s.xp,game.threshold(),'xp')+'<small>'+s.xp+' / '+game.threshold()+' XP</small></div>'+btn('Kronika','journal','','secondary')+'</div>'+
+  '<div class="character-summary"><img src="'+hero().select+'" alt="'+esc(s.heroName||hero().defaultName)+'"><div><small>Úroveň '+s.level+'</small><h3>'+hero().pronoun+' na zkušební dobu</h3>'+health(s.xp,game.threshold(),'xp')+'<small>'+s.xp+' / '+game.threshold()+' XP</small></div>'+btn('Kronika','journal','','secondary')+'</div>'+
   '<nav class="character-sections" aria-label="Přehled postavy">'+[['attributes','Atributy'],['equipment','Nasazeno'],['effects','Účinky']].map(([id,label])=>'<button data-action="character-page" data-value="'+id+'" aria-pressed="'+(characterPage===id)+'">'+label+'</button>').join('')+'</nav>'+
   '<div class="character-content">'+body+'</div></section>';
 }
@@ -266,8 +278,8 @@ function inventoryView(){
 function renderDialog(){
  const s=game.state,p=s.pending[0];let body='';
  if(front&&!dialog){body='';
- }else if(!front&&!s.heroName){
-  body='<div class="welcome-content"><h2 id="dialog-title">Quest Happens</h2><img src="assets/sir-smik.webp" alt="Tvůj dobrodruh"><label for="hero-name">Jak se jmenuješ?</label><input id="hero-name" autocomplete="off" maxlength="24" value="'+esc(nameDraft)+'" aria-describedby="name-hint"><small id="name-hint">2–24 znaků. Návrh můžeš přepsat.</small>'+btn(s.run||s.level>1?'Pokračovat v příběhu':'Vstoupit do příběhu','name-confirm','','primary wide')+'</div>';
+ }else if(!front&&(!s.heroChosen||!s.heroName)){
+  body='<div class="welcome-content"><h2 id="dialog-title">'+esc(hero().label)+'</h2><img src="'+hero().select+'" alt="Tvůj dobrodruh"><label for="hero-name">Jak se jmenuješ?</label><input id="hero-name" autocomplete="off" maxlength="24" value="'+esc(nameDraft)+'" aria-describedby="name-hint"><small id="name-hint">2–24 znaků. Návrh můžeš přepsat.</small>'+btn(s.run||s.level>1?'Pokračovat v příběhu':'Vstoupit do příběhu','name-confirm','','primary wide')+'</div>';
  }else if(!front&&s.storyEvents.length&&!p&&!dialog){
   const e=s.storyEvents[0],answered=e.response!==undefined;
   body='<div class="story-copy"><small class="eyebrow">EPIZODA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>'+esc(s.heroName)+': '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
@@ -350,7 +362,7 @@ function dispatch(action,value){
  if(front&&!['sound-toggle','sound-preview','map-labels-toggle','close'].includes(action))return;
  let result=true;const s=game.state,beforeStats=game.stats();
  audio.configure(s.settings.sound,s.settings.volume);void audio.unlock();
- if(!front&&!s.heroName&&action!=='name-confirm')return;
+  if(!front&&(!s.heroChosen||!s.heroName)&&action!=='name-confirm')return;
  if(action==='equip'||action==='unequip'||(action==='loot'&&value==='equip')){
   const it=action==='loot'?s.pending[0]?.item:action==='equip'?s.inventory.find(x=>x.id===value):null;
   const slot=action==='unequip'?value:it?D.itemById[it.kind].slot:null;

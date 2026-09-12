@@ -8,7 +8,7 @@ assert.ok(html.includes('id="topbar-title">Údolí posledního světla</h1>'));a
 const scripts=await Promise.all(['data.js','encounters.js','story.js','engine.js','audio.js','scenes.js','saves.js','game.js'].map(f=>readFile(new URL('../'+f,import.meta.url),'utf8')));
 const css=await readFile(new URL('../styles.css',import.meta.url),'utf8');
 const palette=await readFile(new URL('../palette.css',import.meta.url),'utf8');
-for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','sir-smik.webp','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
+for(const asset of ['overworld-v3.webp','characters-v3.webp','environments-v3.webp','hero-roman-select.jpg','hero-sorsha-select.jpg','hero-roman-battle-cutout.png','hero-sorsha-battle-cutout.png','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp'])await access(new URL('../assets/'+asset,import.meta.url));
 const handlers={},nodes=new Map(),storage=new Map(),timers=new Map();let seq=0;
 const node=id=>({id,dataset:{},innerHTML:'',textContent:'',hidden:id==='overlay',style:{},disabled:false,inert:false,
  classList:{add(){},remove(){},toggle(){}},setAttribute(){},focus(){document.activeElement=this},querySelector(){return null},querySelectorAll(){return[]},matches(){return false}});
@@ -146,7 +146,7 @@ click('equipped','body');assert.ok(!/Zbroj \+\d+[,.]\d/.test(overlay()));click('
 
 const unnamed=new ctx.RPG.Game();unnamed.state.flags.chapterIntroSeen=true;unnamed.start();unnamed.state.storyEvents=[];unnamed.state.notice=null;unnamed.fight('guard');
 storage.set('ne-ale-zabijim-v3',JSON.stringify(unnamed.state));await boot();
-assert.ok(overlay().includes('Jak se jmenuješ?'));assert.ok(overlay().includes('value="Vendel"'));const savedRun=JSON.stringify(state().run),savedGold=state().gold;
+assert.ok(overlay().includes('Jak se jmenuješ?'));assert.ok(overlay().includes('value="Roman"'));const savedRun=JSON.stringify(state().run),savedGold=state().gold;
 click('start');assert.equal(JSON.stringify(state().run),savedRun);
 handlers.input({target:{id:'hero-name',value:'<img onerror=alert(1)>'}});click('name-confirm');assert.equal(state().heroName,'');assert.ok(overlay().includes('Jak se jmenuješ?'));
 handlers.input({target:{id:'hero-name',value:"Žan O'Neil"}});handlers.visibilitychange();assert.ok(overlay().includes('Žan O&#39;Neil'));
@@ -169,8 +169,8 @@ click('menu');click('save-menu');click('save-slot','1');await settle();assert.ok
 const checkpoint=structuredClone(cloud.find(r=>r.slot==='1').state);
 click('save-menu');click('save-slot','1');assert.ok(overlay().includes('Přepsat pozici 1'));click('save-menu');assert.equal(cloud.find(r=>r.slot==='1').revision,1);
 click('menu');click('main-menu');await settle();assert.equal(nodes.get('game').hidden,true);assert.ok(cloud.some(r=>r.slot==='auto'));
-click('title-new');assert.ok(title().includes('Ruční pozice'));click('title-back');assert.equal(cloud.find(r=>r.slot==='1').state.heroName,checkpoint.heroName);
-click('title-new');click('title-new-confirm');await settle();assert.ok(overlay().includes('Jak se jmenuješ?'));
+click('title-new');assert.ok(title().includes('Vyber hrdinu'));assert.ok(title().includes('Sorsha'));click('title-back');assert.equal(cloud.find(r=>r.slot==='1').state.heroName,checkpoint.heroName);
+click('title-new');click('title-hero','female');await settle();assert.ok(overlay().includes('Jak se jmenuješ?'));assert.ok(overlay().includes('value="Sorsha"'));
 handlers.input({target:{id:'hero-name',value:'Radovan'}});click('name-confirm');dismissStories();
 click('menu');click('main-menu');await settle();click('title-list');await settle();click('title-load','1');await settle();
 assert.equal(state().heroName,checkpoint.heroName);assert.equal(state().gold,checkpoint.gold);assert.deepEqual(state().run,checkpoint.run);
