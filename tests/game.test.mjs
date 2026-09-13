@@ -114,7 +114,9 @@ test('merge preview is pure; promotion increases real damage and keeps base gene
  a.rank=b.rank=3;g.state.inventory=[a,b];const snapshot=JSON.stringify(g.state);
  const p=g.mergePreview(a.id,b.id);assert.equal(JSON.stringify(g.state),snapshot);assert.equal(p.item.rarity,'legendary');
  const before=g.stats({weapon:a}).damageMax,after=g.stats({weapon:p.item}).damageMax;assert.ok(after>before);
+ assert.equal(p.base.id,a.id);assert.equal(p.donor.id,b.id);assert.notEqual(p.base,p.item);
  const out=g.merge(a.id,b.id);assert.ok(out);assert.equal(g.state.inventory.length,1);assert.ok(out.affixes.every((x,i)=>x.value>=p.item.affixes[i].value));
+ assert.equal(g.state.pending[0].merge.base.id,a.id);assert.equal(g.state.pending[0].merge.donor.id,b.id);
  assert.equal(g.merge(out.id,out.id),false);
 });
 test('mismatched slot cannot merge; low donor cannot degrade inherited genes',()=>{

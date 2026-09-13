@@ -550,13 +550,13 @@ class Game {
   }
   if(!out.trait&&b.trait){out.trait=b.trait;out.name=b.name;}
   const cost=6+tier*4;
-  return {item:out,cost,promote,mutation:'Každý zděděný afix má 20% šanci zesílit o 1–2 body. Nic z náhledu se nezhorší.'};
+  return {item:out,base:copy(a),donor:copy(b),cost,promote,mutation:'Každý zděděný afix má 20% šanci zesílit o 1–2 body. Nic z náhledu se nezhorší.'};
  }
  merge(a,b){
   const s=this.state,p=this.mergePreview(a,b);if(!p||s.run?.battle||s.essence<p.cost)return false;
   const out=p.item;out.id=this.uid();for(const gene of out.affixes)if(this.random()<.2)gene.value+=1+Math.floor(this.random()*2);
   s.inventory=s.inventory.filter(x=>x.id!==a&&x.id!==b);s.inventory.push(out);s.essence-=p.cost;s.metrics.merges++;
-  s.pending.push({type:'item',item:copy(out),note:'Spojení dokončeno. Předmět je už bezpečně v inventáři.',previewOnly:true});
+  s.pending.push({type:'item',item:copy(out),note:'Spojení dokončeno. Předmět je už bezpečně v inventáři.',previewOnly:true,merge:{base:p.base,donor:p.donor,promote:p.promote}});
   return out;
  }
  craft(area=this.state.selectedArea){

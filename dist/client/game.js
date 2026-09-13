@@ -69,6 +69,7 @@ let lastLootSound=game.state.pending[0]?.item?.id,lastAudioLevel=game.state.leve
 const $=id=>document.getElementById(id),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,value='',classes='',disabled=false)=>'<button class="'+classes+'" data-action="'+action+'" data-value="'+esc(value)+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
 const name=it=>it.name||(it.kind==='ring'&&it.affixes.some(x=>x.id==='luck')?'Prsten štěstí':D.itemById[it.kind].label);
+const rarityClass=it=>'rarity-'+(D.rarityById[it?.rarity]?it.rarity:'common');
 const pct=new Set(['crit','evasion','leech','gold','thorns','haste','block','xpBonus']);
 const fmt=n=>String(Math.round(n)),unit=k=>pct.has(k)?' %':'';
 const statRows=[['might','Síla'],['grit','Odolnost'],['agility','Obratnost'],['intelligence','Inteligence'],['luck','Štěstí'],['perception','Všímavost'],['damageMin','Min. poškození'],['damageMax','Max. poškození'],['maxHp','Životy'],['armor','Zbroj'],['crit','Kritická šance'],['evasion','Úhyb'],['block','Blok'],['thorns','Trny'],['absorb','Pohlcení'],['haste','Rychlost'],['gold','Bonus zlata'],['xpBonus','Bonus zkušeností'],['leech','Kradení života'],['shieldCap','Kapacita štítu']];
@@ -136,7 +137,7 @@ function percent(n,max){return Math.max(0,Math.min(100,n/max*100));}
 function health(n,max,kind=''){return '<div class="health '+kind+'"><i style="width:'+percent(n,max)+'%"></i></div>';}
 function lootCard(it,compact=false){
  const d=D.itemById[it.kind],r=D.rarityById[it.rarity];
- return '<div class="item-card '+(compact?'compact':'')+'" style="--rarity:'+r.color+'">'+itemArt(it.kind)+'<div><small>'+r.label+' · úroveň '+it.ilvl+' · +'+it.rank+'</small><strong>'+esc(name(it))+'</strong><span>'+D.slots[d.slot]+'</span></div></div>';
+ return '<div class="item-card rarity-frame '+rarityClass(it)+' '+(compact?'compact':'')+'" style="--rarity:'+r.color+'">'+itemArt(it.kind)+'<div><small>'+r.label+' · úroveň '+it.ilvl+' · +'+it.rank+'</small><strong>'+esc(name(it))+'</strong><span>'+D.slots[d.slot]+'</span></div></div>';
 }
 function genes(it){
  const p=game.basePower(it),slot=D.itemById[it.kind].slot,core=slot==='weapon'?'Poškození +'+Math.round(p*1.6)+' až +'+Math.round(p*2):['head','body','feet','hands','offhand'].includes(slot)?'Zbroj +'+fmt(p*1.6)+' · životy +'+fmt(p*3)+(slot==='offhand'?' · blok +12 %':''):'Poškození +'+Math.round(p*.3)+' až +'+Math.round(p*.5);
@@ -178,6 +179,22 @@ function mapView(){
  const markers=D.areas.map((p,i)=>'<button class="map-pin poi-'+i+' '+(i>=s.unlocked?'locked':'available')+' '+(i===s.selectedArea?'selected':'')+' '+(s.records[i].clears?'cleared':'')+' '+(i===newlyUnlocked?'newly-unlocked':'')+'" data-action="area" data-value="'+i+'" data-label="'+esc(p.name)+'" style="left:'+p.x+'%;top:'+p.y+'%"'+(i>=s.unlocked?' disabled aria-hidden="true"':'')+' aria-label="'+esc(p.name)+'"></button>').join('');
  const alert=s.pending.length?btn('Nový nález','loot-show','','map-loot'):(s.run?btn('Pokračovat','tab','road','map-loot'):'' );
  return '<section class="map-screen"><div class="world-map'+labels+'"><div class="map-canvas">'+markers+'</div>'+alert+btn('<span aria-hidden="true">🔥</span><small>Tábor</small>','camp-menu','','camp-fab')+'</div></section>';
+}
+function mergeDelta(item,base,donor,promote=false){
+ if(!base||!donor)return genes(item);
+ const itemRarity=D.rarityById[item.rarity],baseRarity=D.rarityById[base.rarity];
+ const beforePower=Math.round(game.basePower(base)),donorPower=Math.round(game.basePower(donor)),afterPower=Math.round(game.basePower(item));
+ const affixes=item.affixes.map(gene=>{
+  const label=D.affixById[gene.id]?.label||gene.id,b=base.affixes.find(x=>x.id===gene.id),d=donor.affixes.find(x=>x.id===gene.id);
+  const before=Math.max(b?.value||0,d?.value||0),change=gene.value-before;
+  const source=!b?'Převzato z dárce':change>0?'Zesíleno o +'+change+unit(gene.id):d?.value>b.value?'Převzata silnější hodnota dárce':'Zachováno';
+  return '<li><span><b>'+esc(label)+'</b><small>'+source+'</small></span><strong>'+(!b?'— ':b.value+unit(gene.id)+' → ')+gene.value+unit(gene.id)+'</strong></li>';
+ }).join('');
+ return '<section class="merge-delta" aria-label="Změny po sloučení"><small>CO SE ZMĚNILO</small><div class="merge-summary">'+
+  '<div><span>Vzácnost</span><b>'+baseRarity.label+(promote?' → '+itemRarity.label:' · beze změny')+'</b></div>'+
+  '<div><span>Hodnost</span><b>+'+base.rank+' → +'+item.rank+'</b></div>'+
+  '<div><span>Základní síla</span><b>'+beforePower+' → '+afterPower+'</b><small>dárce: '+donorPower+'</small></div></div>'+
+  '<ul>'+affixes+'</ul><p>Oba rodiče budou spotřebováni. Výsledek nikdy neztratí lepší hodnotu žádného z nich.</p></section>';
 }
 function recipeCard(area){
  const p=D.areas[area],r=game.state.records[area],sig=D.signatures[p.recipe];
@@ -235,7 +252,7 @@ function characterView(){
   body='<div class="attribute-grid">'+growthDefs.map(([id,,label])=>btn('<strong>'+label+'</strong><span>'+fmt(a[id])+'</span>','help',id,'attribute-tile')).join('')+'</div>';
  }else if(characterPage==='equipment'){
   body='<div class="equipment-grid">'+Object.entries(D.slots).map(([slot,label])=>{
-   const it=s.equipped[slot];return '<button class="equipment" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'"><small>'+label+'</small>'+(it?itemArt(it.kind):'<span>＋</span>')+'<b>'+esc(it?name(it):'Prázdné místo')+'</b></button>';
+  const it=s.equipped[slot];return '<button class="equipment '+(it?'rarity-frame '+rarityClass(it):'')+'" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'"><small>'+label+'</small>'+(it?itemArt(it.kind):'<span>＋</span>')+'<b>'+esc(it?name(it):'Prázdné místo')+'</b></button>';
   }).join('')+'</div>'+(a.traits.length?btn('Vlastnosti výbavy · '+a.traits.length,'traits','','secondary wide'):'');
  }else{
   body='<div class="attribute-grid effect-grid">'+statRows.slice(statPage*6,statPage*6+6).map(([key,label])=>btn('<strong>'+label+'</strong><span>'+fmt(a[key])+unit(key)+'</span>','stat-help',key,'attribute-tile')).join('')+'</div>'+
@@ -258,7 +275,7 @@ function levelUpView(){
 function equippedGrid(compact=false){
  const s=game.state;
  return '<div class="equipment-grid'+(compact?' compact-equipment':'')+'">'+Object.entries(D.slots).map(([slot,label])=>{
-  const it=s.equipped[slot];return '<button class="equipment" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'" aria-label="'+esc(label+': '+(it?name(it):'prázdné'))+'"><small>'+label+'</small>'+(it?itemArt(it.kind):'<span class="empty-slot-mark" aria-hidden="true">—</span>')+(compact?'':'<b>'+esc(it?name(it):'Prázdné místo')+'</b>')+'</button>';
+  const it=s.equipped[slot];return '<button class="equipment '+(it?'rarity-frame '+rarityClass(it):'')+'" style="--rarity:'+(it?D.rarityById[it.rarity].color:'#32504d')+'" data-action="equipped" data-value="'+slot+'" aria-label="'+esc(label+': '+(it?name(it):'prázdné'))+'"><small>'+label+'</small>'+(it?itemArt(it.kind):'<span class="empty-slot-mark" aria-hidden="true">—</span>')+(compact?'':'<b>'+esc(it?name(it):'Prázdné místo')+'</b>')+'</button>';
  }).join('')+'</div>';
 }
 function inventoryView(){
@@ -272,7 +289,7 @@ function inventoryView(){
   const d=D.itemById[it.kind],r=D.rarityById[it.rarity];
   if(filter!=='all'&&d.slot!==filter)return '<div class="bag-slot filtered-slot" aria-label="Předmět skrytý filtrem"><span aria-hidden="true">—</span></div>';
   const compatible=base&&base.id!==it.id&&D.itemById[base.kind].slot===d.slot;
-  return '<button class="bag-slot'+(compatible?' compatible':'')+(base?.id===it.id?' merge-parent':'')+'" data-action="item" data-value="'+esc(it.id)+'" aria-label="'+esc(name(it)+' · '+r.label+' · úroveň '+it.ilvl)+'" style="--rarity:'+r.color+'">'+itemArt(it.kind)+'</button>';
+  return '<button class="bag-slot rarity-frame '+rarityClass(it)+(compatible?' compatible':'')+(base?.id===it.id?' merge-parent':'')+'" data-action="item" data-value="'+esc(it.id)+'" aria-label="'+esc(name(it)+' · '+r.label+' · úroveň '+it.ilvl)+'" style="--rarity:'+r.color+'">'+itemArt(it.kind)+'</button>';
  }).join('')+'</div>'+
  (s.inventory.length>s.capacity?'<p class="overflow-note">Předměty nad limitem zůstaly zachované. Pro nový nález nejdřív uvolni místo.</p>':'')+
  '<div class="inventory-tools">'+btn('Krámek','shop','','secondary')+btn('Kovárna','forge','','secondary')+'</div></section>';
@@ -287,7 +304,7 @@ function renderDialog(){
   body='<div class="story-copy"><small class="eyebrow">EPIZODA I · '+esc(e.speaker)+'</small><h2 id="dialog-title">'+esc(e.title)+'</h2><blockquote>'+esc(answered?e.answers[e.response]:e.text)+'</blockquote><p>'+esc(answered?e.closing:e.narration)+'</p>'+(answered?'<small>'+esc(s.heroName)+': '+esc(e.replies[e.response])+'</small>':'')+'</div><footer class="dialog-footer">'+(answered?btn('Pokračovat','story-close','','primary wide'):e.replies.map((reply,i)=>btn(esc(reply),'story-reply',i,'secondary wide')).join(''))+'</footer>';
  }else if(!front&&p&&!dialog){
   if(p.type==='chest')body='<div class="chest-art scene-5"><div class="scene-art"></div>'+sceneSprite(RPGScenes.encounter({kind:'chest'},{area:0},null),'chest-token')+'</div><small class="eyebrow">NALEZENÁ TRUHLA</small><h2 id="dialog-title">'+['Ošoupaná truhla','Železná truhla','Runová truhla'][p.tier]+'</h2><p>'+esc(p.note)+'</p><p class="muted">Uvnitř může být výbava. I bez předmětu získáš zlato a esenci.</p>'+btn('Otevřít truhlu','chest','','primary wide');
-  else body='<small class="eyebrow">'+(p.previewOnly?'SPOJENÍ DOKONČENO':'NOVÝ NÁLEZ')+'</small><h2 id="dialog-title">'+(p.previewOnly?'Sloučený předmět':'Nalezený předmět')+'</h2>'+lootCard(p.item)+genes(p.item)+compare(p.item)+'<p class="muted">'+esc(p.note)+'</p>'+
+  else body='<small class="eyebrow">'+(p.previewOnly?'SPOJENÍ DOKONČENO':'NOVÝ NÁLEZ')+'</small><h2 id="dialog-title">'+(p.previewOnly?'Sloučený předmět':'Nalezený předmět')+'</h2>'+lootCard(p.item)+(p.previewOnly?mergeDelta(p.item,p.merge?.base,p.merge?.donor,p.merge?.promote):genes(p.item)+compare(p.item))+'<p class="muted">'+esc(p.note)+'</p>'+
    (p.previewOnly?btn('Hotovo','preview-close','','primary wide'):'<div class="dialog-actions">'+btn('Nasadit','loot','equip','primary',s.inventory.length>=s.capacity&&!!s.equipped[D.itemById[p.item.kind].slot])+btn(s.inventory.length>=s.capacity?'Inventář plný':'Do inventáře','loot','take','secondary',s.inventory.length>=s.capacity)+btn('Prodat · '+game.price(p.item)+' ◈','loot','sell','secondary')+btn('Rozložit · '+(2+D.rarityIndex(p.item.rarity)*2)+' ✦','loot','salvage','secondary')+'</div>'+
    (s.inventory.length>=s.capacity?btn('Spravovat plný inventář','manage-loot','','text-button wide'):''));
  }else if(dialog?.type==='level-up'){
@@ -301,7 +318,7 @@ function renderDialog(){
    btn('Nasadit','equip',it.id,'primary',!!s.run?.battle)+btn('Slučovat','merge-start',it.id,'secondary',!!s.run?.battle)+btn('Prodat · '+game.price(it)+' ◈','sell',it.id,'secondary')+btn('Rozložit na esenci','salvage',it.id,'secondary'))+'</div>'+btn('Zavřít','close','','text-button wide');
  }else if(dialog?.type==='merge'){
   const preview=game.mergePreview(mergeBase,donor);
-  if(preview)body=wallet(['essence'])+'<small class="eyebrow">NÁHLED · ZATÍM NIC NESPOTŘEBOVÁNO</small><h2 id="dialog-title">'+(preview.promote?'Vzestup do vyšší kategorie':'Potomek tvé výbavy')+'</h2>'+lootCard(preview.item)+genes(preview.item)+'<p>Zaručená základní síla: '+Math.round(game.basePower(preview.item))+'. Geny uvedené výše zůstanou nebo zesílí.</p><p>'+preview.mutation+'</p><div class="dialog-actions">'+btn('Sloučit · '+preview.cost+' ✦','merge-confirm','','primary',s.essence<preview.cost||!!s.run?.battle)+btn('Zpět','close','','secondary')+'</div><small>Potvrzení spotřebuje oba rodiče.</small>';
+  if(preview)body=wallet(['essence'])+'<small class="eyebrow">NÁHLED · ZATÍM NIC NESPOTŘEBOVÁNO</small><h2 id="dialog-title">'+(preview.promote?'Vzestup do vyšší kategorie':'Potomek tvé výbavy')+'</h2>'+lootCard(preview.item)+mergeDelta(preview.item,preview.base,preview.donor,preview.promote)+'<p class="muted">'+preview.mutation+'</p><div class="dialog-actions">'+btn('Sloučit · '+preview.cost+' ✦','merge-confirm','','primary',s.essence<preview.cost||!!s.run?.battle)+btn('Zpět','close','','secondary')+'</div><small>Potvrzení spotřebuje oba rodiče.</small>';
  }else if(dialog?.type==='forge'){
   body='<h2 id="dialog-title">Kovárna</h2>'+recipeCard(s.selectedArea)+'<details><summary>Jak slučovat</summary><p>Otevři předmět v inventáři a zvol Slučovat. Vyber dárce do stejného slotu. Před potvrzením uvidíš cenu i výsledek.</p></details>'+btn('Zpět','close','','primary wide');
  }else if(dialog?.type==='shop'){
