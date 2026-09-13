@@ -200,8 +200,8 @@ function roadView(){
  const progressLabels=r.area===0?['Brána věže','Dolní schodiště','Strojovna výtahu','Horní ochoz','Zvonice']:['Vstup do oblasti','Za hlídkami','Hlubší cesta','Na stopě cíle','Poslední úsek'];
  const progress='<div class="expedition-progress"><div class="progress-label"><span>'+progressLabels[phase]+'</span><b>'+Math.round(r.index/r.rooms.length*100)+' %</b></div>'+health(r.index,r.rooms.length,'xp')+'</div>';
  const art=RPGScenes.encounter(room,r,b||(n?r.lastFoe:null)),effects=game.combatEffects();
- const towerClass=towerFloor>=0?' tower-floor-'+towerFloor:'',towerLabel=towerFloor>=0?['Vstupní síň','Strojovna výtahu','Zvonice a pracovna'][towerFloor]:'';
- const stage='<section class="stage scene-'+p.scene+towerClass+' '+(b?'fighting ':'')+(motion?'motion-'+motion:'')+'" aria-label="'+esc(p.name)+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+(towerLabel?'<small class="stage-location">'+towerLabel+'</small>':'')+
+ const towerClass=towerFloor>=0?' tower-floor-'+towerFloor:'';
+ const stage='<section class="stage scene-'+p.scene+towerClass+' '+(b?'fighting ':'')+(motion?'motion-'+motion:'')+'" aria-label="'+esc(p.name)+'"><div class="scene-art"></div><div class="stage-vignette"></div>'+
   sceneSprite(art,'encounter-token')+
  (b?'<div class="battle-bonuses"><div class="hero-bonuses">'+effects.hero.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div><div class="enemy-bonuses">'+effects.enemy.map(x=>'<span>'+esc(x)+'</span>').join('')+'</div></div><div class="enemy-meter"><strong>'+esc(b.name)+'</strong>'+health(b.hp,b.maxHp,'enemy')+'<small>'+b.hp+' / '+b.maxHp+'</small></div>':'')+
    heroActor()+(!b&&!n&&['trade','merchant'].includes(room.kind||room.id)?wallet(['gold']):'')+'</section>';
