@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 const scope=vm.createContext({console});
 for(const file of ['data.js','encounters.js','story.js','engine.js','audio.js'])vm.runInContext(await readFile(new URL('../'+file,import.meta.url),'utf8'),scope);
 const {synth,names,Player,weaponCue,sequence,RATE}=scope.RPGSound;
-assert.equal(names.length,25);
+assert.equal(names.length,28);
 assert.equal(sequence(['block','hurt'],'sword').map(x=>x.name).join(','),'block');
 assert.equal(sequence(['critical'],'bow').map(x=>x.name).join(','),'arrow,critical');
 assert.equal(sequence(['critical'],'wand').map(x=>x.name).join(','),'magic,critical');

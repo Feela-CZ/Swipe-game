@@ -10,6 +10,7 @@ for (const entry of ['index.html', 'manifest.webmanifest', 'styles.css', 'mobile
   await cp(new URL(`./${entry}`, import.meta.url), new URL(`./${entry}`, output), { recursive:true });
 }
 await mkdir(new URL('./assets/', output), {recursive:true});
+for(const asset of ['music-tavern-dance.mp3','music-goblin-jig.mp3'])await cp(new URL('./assets/'+asset,import.meta.url),new URL('./assets/'+asset,output));
 for (const asset of ['title-adventure-v1.webp','episode-1-map-v2.webp','app-icon-192.png','app-icon-512.png','navigation-atlas-v1.png','tower-floors-v1.png','overworld-v3.webp', 'characters-v3.webp', 'environments-v3.webp', 'hero-roman-select.jpg','hero-sorsha-select.jpg','hero-roman-battle-cutout.png','hero-sorsha-battle-cutout.png','equipment-atlas-v1.webp','equipment-atlas-v2.webp','equipment-atlas-v3.webp','encounter-characters.png','encounter-props.png']) {
   await cp(new URL(`./assets/${asset}`, import.meta.url), new URL(`./assets/${asset}`, output));
 }

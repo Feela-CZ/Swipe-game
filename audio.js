@@ -108,5 +108,61 @@ class Player{
  stop(){this.epoch++;for(const source of this.voices){try{source.stop();source.disconnect();}catch{}}this.voices.clear();}
  visibility(hidden){this.hidden=hidden;if(hidden){this.stop();if(this.context?.state==='running')this.context.suspend().catch(()=>{});}}
 }
-globalThis.RPGSound={Player,synth,names,weaponCue,sequence,RATE};
+// One streaming element survives screen changes; the next song starts on ended.
+const musicTracks=['assets/music-tavern-dance.mp3','assets/music-goblin-jig.mp3'];
+class Music{
+ constructor(host=globalThis,onError=()=>{}){
+  this.host=host;this.onError=onError;this.enabled=true;this.volume=.3;this.hidden=false;
+  this.activated=false;this.index=0;this.media=null;this.context=null;this.gain=null;this.pending=null;this.failed=false;
+ }
+ configure(enabled,volume=.3){
+  this.enabled=enabled!==false;this.volume=Number.isFinite(volume)?Math.max(0,Math.min(1,volume)):.3;
+  this.setVolume();if(!this.wanted())this.media?.pause();else this.play();
+ }
+ wanted(){return this.enabled&&this.volume>0&&!this.hidden&&this.activated;}
+ setVolume(fade=false){
+  if(!this.media)return;
+  const level=this.volume*.65;
+  if(this.gain){const g=this.gain.gain,t=this.context.currentTime;g.cancelScheduledValues(t);g.setValueAtTime(fade?0:g.value,t);g.linearRampToValueAtTime(level,t+.3);}
+  else this.media.volume=level;
+ }
+ activate(){
+  this.activated=true;if(!this.wanted()||this.failed)return;
+  try{
+   if(!this.media){
+    this.media=new this.host.Audio();this.media.preload='none';this.media.loop=false;
+    this.media.src=musicTracks[this.index];
+    this.media.addEventListener('ended',()=>{
+     this.index=(this.index+1)%musicTracks.length;this.media.src=musicTracks[this.index];this.pending=null;
+     this.setVolume(true);this.play();
+    });
+    this.media.addEventListener('error',()=>this.failure());
+    // Web Audio gain also controls music volume on iOS, where element.volume may be ignored.
+    const C=this.host.AudioContext||this.host.webkitAudioContext;
+    if(C)try{this.context=new C();this.gain=this.context.createGain();this.source=this.context.createMediaElementSource(this.media);this.source.connect(this.gain);this.gain.connect(this.context.destination);}catch{this.context=null;this.gain=null;}
+    this.setVolume(true);
+   }
+   this.play();
+ }catch{this.failure();}
+}
+ retry(){this.failed=false;this.activate();}
+ play(){
+  if(!this.media||!this.wanted()||this.failed)return;
+  if(this.context&&this.context.state!=='running')void this.context.resume().catch(()=>{});
+  if(this.pending||!this.media.paused)return;
+  try{
+   const attempt=Promise.resolve(this.media.play());this.pending=attempt;
+   attempt.then(()=>{if(!this.wanted())this.media.pause();},error=>{
+    if(error?.name!=='NotAllowedError'&&error?.name!=='AbortError')this.failure();
+   }).finally(()=>{if(this.pending===attempt)this.pending=null;});
+  }catch{this.failure();}
+ }
+ failure(){if(!this.failed){this.failed=true;this.media?.pause();this.onError();}}
+ visibility(hidden){
+  this.hidden=!!hidden;
+  if(this.hidden){this.media?.pause();if(this.context?.state==='running')void this.context.suspend().catch(()=>{});}
+  else this.play();
+ }
+}
+globalThis.RPGSound={Player,Music,musicTracks,synth,names,weaponCue,sequence,RATE};
 })();
